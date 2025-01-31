@@ -1,0 +1,14 @@
+# Logs
+setup_install_*.log
+*.log
+
+# System files
+.DS_Store
+.directory
+.Trash-*
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
