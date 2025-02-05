@@ -44,11 +44,11 @@ check_system() {
         exit 1
     fi
 
-    # Check for minimum disk space (10GB)
-    local required_space=10000000
+    # Check for minimum disk space (1GB)
+    local required_space=1000000
     local available_space=$(df /home --output=avail | tail -1)
     if [ "$available_space" -lt "$required_space" ]; then
-        print_error "Insufficient disk space. Need at least 10GB free."
+        print_error "Insufficient disk space. Need at least 1GB free."
         exit 1
     fi
 }
