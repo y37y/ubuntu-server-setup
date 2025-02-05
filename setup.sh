@@ -720,6 +720,7 @@ main() {
                 install_network_tools
                 install_nerd_fonts
                 install_remote_access_tools
+                execute_subscript "virtualbox.sh"
                 update_grub_config
                 ;;
             "base")
@@ -797,6 +798,7 @@ main() {
         "12" "Network Tools" OFF
         "13" "Nerd Fonts" OFF
         "14" "Remote Access Tools" OFF
+        "15" "VirtualBox" OFF
         "16" "Update GRUB Configuration" OFF
     )
 
@@ -831,6 +833,7 @@ main() {
         install_network_tools
         install_nerd_fonts
         install_remote_access_tools
+        execute_subscript "virtualbox.sh"
         update_grub_config
     else
         # Individual selections
@@ -848,6 +851,7 @@ main() {
         [[ $choices == *'"12"'* ]] && install_network_tools
         [[ $choices == *'"13"'* ]] && install_nerd_fonts
         [[ $choices == *'"14"'* ]] && install_remote_access_tools
+        [[ $choices == *'"15"'* ]] && execute_subscript "virtualbox.sh"
         [[ $choices == *'"16"'* ]] && update_grub_config
     fi
 
