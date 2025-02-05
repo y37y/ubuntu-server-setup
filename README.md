@@ -96,8 +96,8 @@ Comprehensive setup scripts for Ubuntu-based systems, focusing on development to
 
 1. Clone the repository:
 ```bash
-git clone git@github.com:busyleo/ubuntu-script.git
-cd ubuntu-script
+git clone git@github.com:y37y/ubuntu-setup.git
+cd ubuntu-setup
 ```
 
 2. Make scripts executable:
