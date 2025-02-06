@@ -710,9 +710,9 @@ main() {
                 install_version_control
                 install_miniconda
                 setup_neovim
-                execute_subscript "node-setup.sh"
-                execute_subscript "rust-setup.sh"
-                execute_subscript "go-setup.sh"
+                execute_subscript "node.sh"
+                execute_subscript "rust.sh"
+                execute_subscript "go.sh"
                 install_browsers
                 setup_chezmoi
                 install_ssh_tools
@@ -823,9 +823,9 @@ main() {
         install_version_control
         install_miniconda
         setup_neovim
-        execute_subscript "node-setup.sh"
-        execute_subscript "rust-setup.sh"
-        execute_subscript "go-setup.sh"
+        execute_subscript "node.sh"
+        execute_subscript "rust.sh"
+        execute_subscript "go.sh"
         install_browsers
         setup_chezmoi
         install_ssh_tools
@@ -841,9 +841,9 @@ main() {
         [[ $choices == *'"3"'* ]] && install_version_control
         [[ $choices == *'"4"'* ]] && install_miniconda
         [[ $choices == *'"5"'* ]] && setup_neovim
-        [[ $choices == *'"6"'* ]] && execute_subscript "node-setup.sh"
-        [[ $choices == *'"7"'* ]] && execute_subscript "rust-setup.sh"
-        [[ $choices == *'"8"'* ]] && execute_subscript "go-setup.sh"
+        [[ $choices == *'"6"'* ]] && execute_subscript "node.sh"
+        [[ $choices == *'"7"'* ]] && execute_subscript "rust.sh"
+        [[ $choices == *'"8"'* ]] && execute_subscript "go.sh"
         [[ $choices == *'"9"'* ]] && install_browsers
         [[ $choices == *'"10"'* ]] && setup_chezmoi
         [[ $choices == *'"11"'* ]] && install_ssh_tools
