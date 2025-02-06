@@ -57,22 +57,25 @@ setup_neovim() {
 
     print_status "Setting up Neovim"
 
-    # Install Neovim and dependencies using Homebrew for latest versions
-    brew install neovim tree-sitter luajit
+    # Install Lua 5.1 and dependencies first via apt
+    print_status "Installing Lua 5.1 and dependencies..."
+    sudo apt install -y lua5.1 liblua5.1-0-dev luarocks python3-full python3-pip python3-venv
 
-    # Check prerequisites
-    check_neovim_prerequisites || {
-        print_error "Prerequisites check failed. Installing missing dependencies..."
-        install_lua_dependencies
-    }
+    # Verify Lua installation
+    print_status "Verifying Lua installation..."
+    if ! command -v lua5.1 &>/dev/null; then
+        print_error "Lua 5.1 installation failed"
+        exit 1
+    fi
+    print_success "Lua 5.1 version: $(lua5.1 -v)"
+    print_success "LuaRocks version: $(luarocks --version)"
+
+    # Install Neovim and dependencies using Homebrew for latest versions
+    print_status "Installing Neovim and core dependencies..."
+    brew install neovim tree-sitter luajit
 
     # Create a Python virtual environment for Neovim
     print_status "Setting up Python environment for Neovim..."
-
-    # Ensure python3-full is installed (Ubuntu-specific)
-    sudo apt install -y python3-full python3-pip python3-venv
-
-    # Create a dedicated virtual environment for Neovim
     if [ ! -d "$HOME/.neovim-venv" ]; then
         python3 -m venv "$HOME/.neovim-venv"
     fi
@@ -93,7 +96,7 @@ setup_neovim() {
     # Backup existing configuration
     if [ -d ~/.config/nvim ]; then
         print_status "Backing up existing Neovim configuration..."
-        mv ~/.config/nvim ~/.config/nvim.bak
+        mv ~/.config/nvim ~/.config/nvim.bak.$(date +%Y%m%d_%H%M%S)
         rm -rf ~/.local/share/nvim
         rm -rf ~/.local/state/nvim
         rm -rf ~/.cache/nvim
@@ -101,29 +104,26 @@ setup_neovim() {
 
     # Clone Neovim configuration
     if [ ! -d ~/.config/nvim ]; then
-        print_status "Cloning Neovim configuration..."
+        print_status "Installing your Neovim configuration..."
+        git clone --recursive https://github.com/y37y/nvim.git ~/.config/nvim
+        cd ~/.config/nvim
         
-        if git clone git@github.com:y37y/nvim-config.git ~/.config/nvim; then
-            print_success "Cloned from GitHub successfully"
-            
-            cd ~/.config/nvim
-            # Set up upstream remote for AstroNvim configuration
-            git remote add upstream https://github.com/chaozwn/astronvim_user
-            git fetch upstream
-            
-            # Initialize and update submodules
-            git submodule update --init --recursive
-        else
-            print_error "Failed to clone from GitHub"
-            return 1
-        fi
+        # Set up upstream remote
+        git remote add upstream https://github.com/chaozwn/astronvim_user
+        git fetch upstream
+        
+        # Initialize and update submodules
+        git submodule update --init --recursive --force
+        git submodule foreach git pull origin master
     fi
 
-    # Install additional tools using Homebrew for latest versions
+    # Install additional tools using Homebrew
+    print_status "Installing additional tools..."
     brew install fzf fd lazygit ripgrep gdu bottom protobuf gnu-sed ast-grep \
         lazydocker imagemagick chafa delta
 
     print_success "Neovim setup complete"
+    print_warning "Please run :checkhealth in Neovim to verify the installation"
     print_warning "If you need custom fonts, make sure to run the Nerd Fonts installation option"
 }
 
@@ -251,20 +251,19 @@ install_shell_tools() {
     fi
 
     # Shell tools (will skip already installed ones)
-    brew install nushell fzf eza atuin zoxide ripgrep fd starship \
+    brew install nushell fzf eza zoxide ripgrep fd starship \
         tmux zellij ghq tree sshpass bat yazi duf bottom \
         tree-sitter
-
-    # Start atuin service if not running
-    if ! brew services list | grep -q "atuin.*started"; then
-        brew services start atuin
-    fi
 
     # Setup fisher and plugins if not already done
     if ! test -f ~/.config/fish/functions/fisher.fish; then
         fish -c 'curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher'
         fish -c 'fisher install edc/bass'
     fi
+
+    # Install Atuin shell history sync
+    print_status "Installing Atuin..."
+    curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
 
     # WezTerm
     if ! command -v wezterm &>/dev/null; then
