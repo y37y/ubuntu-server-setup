@@ -603,7 +603,7 @@ execute_subscript() {
     fi
 }
 
-# Function to install SSH tools (removed SSH requirement)
+# Function to install SSH tools (no SSH key requirements)
 install_ssh_tools() {
     print_status "Installing SSH tools"
     
@@ -624,19 +624,20 @@ main() {
             "help"|"-h"|"--help")
                 echo "Usage: $0 [command]"
                 echo "Commands:"
-                echo "  all     - Install all components"
-                echo "  base    - Install base development tools"
-                echo "  shell   - Install shell tools"
-                echo "  neovim  - Install Neovim"
-                echo "  grub    - Update GRUB configuration"
-                echo "  help    - Show this help message"
+                echo "  all      - Install all components"
+                echo "  base     - Install base development tools"
+                echo "  shell    - Install shell tools"
+                echo "  neovim   - Install Neovim"
+                echo "  dotfiles - Setup dotfiles configuration"
+                echo "  grub     - Update GRUB configuration"
+                echo "  help     - Show this help message"
                 echo ""
                 echo "If no command is provided, interactive menu will be shown."
                 exit 0
                 ;;
         esac
 
-        # For all other commands - removed SSH check
+        # For all other commands
         check_system
         maintain_sudo
         sudo apt update && sudo apt upgrade -y
@@ -652,6 +653,7 @@ main() {
                 execute_subscript "rust.sh"
                 execute_subscript "go.sh"
                 install_browsers
+                execute_subscript "dotfiles.sh"
                 install_ssh_tools
                 install_network_tools
                 install_nerd_fonts
@@ -667,6 +669,9 @@ main() {
                 ;;
             "neovim")
                 setup_neovim
+                ;;
+            "dotfiles")
+                execute_subscript "dotfiles.sh"
                 ;;
             "grub")
                 update_grub_config
@@ -705,7 +710,7 @@ main() {
     actsellistbox=white,blue
     '
 
-    # Initial checks - removed SSH check
+    # Initial checks
     check_system
     maintain_sudo
 
@@ -728,7 +733,7 @@ main() {
         "7" "Rust Tools" OFF
         "8" "Go Environment" OFF
         "9" "Browsers" OFF
-        "10" "Dotfiles Configuration" OFF  # <-- Add this line
+        "10" "Dotfiles Configuration" OFF
         "11" "SSH Tools" OFF
         "12" "Network Tools" OFF
         "13" "Nerd Fonts" OFF
