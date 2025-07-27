@@ -728,12 +728,13 @@ main() {
         "7" "Rust Tools" OFF
         "8" "Go Environment" OFF
         "9" "Browsers" OFF
-        "10" "SSH Tools" OFF
-        "11" "Network Tools" OFF
-        "12" "Nerd Fonts" OFF
-        "13" "Remote Access Tools" OFF
-        "14" "VirtualBox" OFF
-        "15" "Update GRUB Configuration" OFF
+        "10" "Dotfiles Configuration" OFF  # <-- Add this line
+        "11" "SSH Tools" OFF
+        "12" "Network Tools" OFF
+        "13" "Nerd Fonts" OFF
+        "14" "Remote Access Tools" OFF
+        "15" "VirtualBox" OFF
+        "16" "Update GRUB Configuration" OFF
     )
 
     choices=$(whiptail --title "Installation Options" \
@@ -762,6 +763,7 @@ main() {
         execute_subscript "rust.sh"
         execute_subscript "go.sh"
         install_browsers
+        execute_subscript "dotfiles.sh"
         install_ssh_tools
         install_network_tools
         install_nerd_fonts
@@ -779,12 +781,13 @@ main() {
         [[ $choices == *'"7"'* ]] && execute_subscript "rust.sh"
         [[ $choices == *'"8"'* ]] && execute_subscript "go.sh"
         [[ $choices == *'"9"'* ]] && install_browsers
-        [[ $choices == *'"10"'* ]] && install_ssh_tools
-        [[ $choices == *'"11"'* ]] && install_network_tools
-        [[ $choices == *'"12"'* ]] && install_nerd_fonts
-        [[ $choices == *'"13"'* ]] && install_remote_access_tools
-        [[ $choices == *'"14"'* ]] && execute_subscript "virtualbox.sh"
-        [[ $choices == *'"15"'* ]] && update_grub_config
+        [[ $choices == *'"10"'* ]] && execute_subscript "dotfiles.sh"
+        [[ $choices == *'"11"'* ]] && install_ssh_tools
+        [[ $choices == *'"12"'* ]] && install_network_tools
+        [[ $choices == *'"13"'* ]] && install_nerd_fonts
+        [[ $choices == *'"14"'* ]] && install_remote_access_tools
+        [[ $choices == *'"15"'* ]] && execute_subscript "virtualbox.sh"
+        [[ $choices == *'"16"'* ]] && update_grub_config
     fi
 
     verify_setup
