@@ -18,40 +18,6 @@ ensure_brew_env() {
     fi
 }
 
-# Function to check SSH agent and keys
-check_ssh_setup() {
-    print_status "Checking SSH setup..."
-
-    if ! pgrep -u "$USER" ssh-agent >/dev/null; then
-        eval "$(ssh-agent -s)" >/dev/null
-    fi
-
-    # Add SSH keys to the agent (looking for any id_ed25519 or id_rsa key)
-    if ! ssh-add -l &>/dev/null; then
-        # Add all id_ed25519 and id_rsa keys from ~/.ssh
-        for key in ~/.ssh/id_ed25519* ~/.ssh/id_rsa*; do
-            if [[ -f "$key" ]]; then
-                print_status "Adding SSH key: $key"
-                ssh-add "$key" &>/dev/null
-            fi
-        done
-
-        # If no key is added, show error and exit
-        if ! ssh-add -l &>/dev/null; then
-            print_error "No SSH keys found. Please set up SSH keys first."
-            exit 1
-        fi
-    fi
-
-    # Check GitHub access
-    if ssh -T git@github.com 2>&1 | grep -q "success"; then
-        print_status "GitHub SSH access verified"
-    else
-        print_error "GitHub SSH access not available"
-        exit 1
-    fi
-}
-
 setup_neovim() {
     ensure_brew_env
 
@@ -127,79 +93,49 @@ setup_neovim() {
     print_warning "If you need custom fonts, make sure to run the Nerd Fonts installation option"
 }
 
-setup_chezmoi() {
+setup_zsh_environment() {
     ensure_brew_env
 
-    print_status "Setting up Chezmoi"
+    print_status "Setting up Zsh environment"
 
-    # Install chezmoi using Homebrew for latest version
-    brew install chezmoi
-
-    # Initialize chezmoi if not already done
-    if [ ! -d "$HOME/.local/share/chezmoi" ]; then
-        print_status "Initializing Chezmoi..."
-        
-        if chezmoi init git@github.com:y37y/chezmoi-ubuntu.git; then
-            print_success "Initialized from GitHub successfully"
-
-            # Setup Neovim configuration directory if it doesn't exist
-            if [ ! -d "$HOME/.local/share/chezmoi/dot_config/nvim" ]; then
-                print_status "Setting up Neovim configuration in Chezmoi..."
-                mkdir -p "$HOME/.local/share/chezmoi/dot_config"
-                
-                print_status "Cloning Neovim configuration..."
-                if git clone git@github.com:y37y/nvim-config.git "$HOME/.local/share/chezmoi/dot_config/nvim"; then
-                    print_success "Cloned from GitHub successfully"
-                else
-                    print_error "Failed to clone from GitHub"
-                    return 1
-                fi
-                
-                cd "$HOME/.local/share/chezmoi/dot_config/nvim"
-                
-                # Setup upstream for Neovim configuration
-                git remote add upstream https://github.com/chaozwn/astronvim_user
-                git fetch upstream
-                
-                # Initialize and update submodules
-                git submodule update --init --recursive
-                
-                cd - > /dev/null
-            fi
-
-            # Apply chezmoi configuration
-            if ! chezmoi apply; then
-                print_warning "Some chezmoi files couldn't be applied. Run 'chezmoi apply' after logging back in."
-            fi
-        else
-            print_error "Failed to initialize from GitHub"
-            return 1
-        fi
-    else
-        print_status "Chezmoi already initialized, updating..."
-        chezmoi update
-        
-        # Update Neovim configuration if it exists
-        if [ -d "$HOME/.local/share/chezmoi/dot_config/nvim" ]; then
-            print_status "Updating Neovim configuration..."
-            cd "$HOME/.local/share/chezmoi/dot_config/nvim"
-            
-            git fetch origin
-            git fetch upstream
-            
-            # Update submodules
-            git submodule update --init --recursive
-            
-            cd - > /dev/null
-        fi
+    # Install Zsh if not present
+    if ! command -v zsh &>/dev/null; then
+        sudo apt install -y zsh
     fi
 
-    print_success "Chezmoi setup complete"
-    print_status "Chezmoi workflow reminders:"
-    print_status "1. Make changes in ~/.local/share/chezmoi/dot_config/nvim"
-    print_status "2. Use 'chezmoi apply' to apply changes"
-    print_status "3. Use 'chezmoi update' to pull latest changes"
-    print_status "4. For Neovim updates, don't modify ~/.config/nvim directly"
+    # Install Zsh configuration
+    if [ ! -d "$HOME/.config/zsh" ]; then
+        print_status "Cloning Zsh configuration..."
+        git clone https://github.com/y37y/zsh.git "$HOME/.config/zsh"
+        
+        cd "$HOME/.config/zsh"
+        
+        # Run the installer
+        if [ -f "./install.sh" ]; then
+            print_status "Running Zsh configuration installer..."
+            chmod +x ./install.sh
+            ./install.sh
+        else
+            # Manual setup if install.sh doesn't exist
+            print_status "Manually setting up Zsh configuration..."
+            cp .zshrc ~/.zshrc
+            
+            # Copy starship config if it exists
+            if [ -f "starship.toml" ]; then
+                mkdir -p ~/.config
+                cp starship.toml ~/.config/starship.toml
+            fi
+        fi
+        
+        cd - > /dev/null
+    else
+        print_status "Zsh configuration already exists, updating..."
+        cd "$HOME/.config/zsh"
+        git pull origin main || git pull origin master
+        cd - > /dev/null
+    fi
+
+    print_success "Zsh environment setup complete"
 }
 
 install_base_development() {
@@ -240,26 +176,12 @@ install_base_development() {
 install_shell_tools() {
     ensure_brew_env
 
-    print_status "Installing shell tools"
+    print_status "Installing shell tools for Zsh"
 
-    # Fish shell setup (only if not already installed)
-    if ! command -v fish &>/dev/null; then
-        brew install fish
-        if ! grep -q "/home/linuxbrew/.linuxbrew/bin/fish" /etc/shells; then
-            echo /home/linuxbrew/.linuxbrew/bin/fish | sudo tee -a /etc/shells
-        fi
-    fi
-
-    # Shell tools (will skip already installed ones)
-    brew install nushell fzf eza zoxide ripgrep fd starship \
-        tmux zellij ghq tree sshpass bat yazi duf bottom \
+    # Install Zsh and related tools
+    brew install zsh fzf eza zoxide ripgrep fd starship \
+        tmux zellij ghq tree bat yazi duf bottom \
         tree-sitter
-
-    # Setup fisher and plugins if not already done
-    if ! test -f ~/.config/fish/functions/fisher.fish; then
-        fish -c 'curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher'
-        fish -c 'fisher install edc/bass'
-    fi
 
     # Install Atuin shell history sync
     print_status "Installing Atuin..."
@@ -271,16 +193,36 @@ install_shell_tools() {
         echo 'deb [signed-by=/usr/share/keyrings/wezterm-fury.gpg] https://apt.fury.io/wez/ * *' | sudo tee /etc/apt/sources.list.d/wezterm.list
         sudo apt update && sudo apt install -y wezterm-nightly
     fi
+
+    # Setup Zsh configuration
+    setup_zsh_environment
 }
 
 change_default_shell() {
-    if [[ "$SHELL" != "/home/linuxbrew/.linuxbrew/bin/fish" ]]; then
-        print_status "Changing default shell to fish..."
-        if ! grep -q "/home/linuxbrew/.linuxbrew/bin/fish" /etc/shells; then
-            echo /home/linuxbrew/.linuxbrew/bin/fish | sudo tee -a /etc/shells
+    local zsh_path
+    
+    # Try to find zsh in common locations
+    if command -v zsh &>/dev/null; then
+        zsh_path=$(which zsh)
+    elif [ -f "/home/linuxbrew/.linuxbrew/bin/zsh" ]; then
+        zsh_path="/home/linuxbrew/.linuxbrew/bin/zsh"
+    else
+        zsh_path="/usr/bin/zsh"
+    fi
+
+    if [[ "$SHELL" != "$zsh_path" ]]; then
+        print_status "Changing default shell to zsh..."
+        
+        # Add zsh to /etc/shells if not already there
+        if ! grep -q "$zsh_path" /etc/shells; then
+            echo "$zsh_path" | sudo tee -a /etc/shells
         fi
-        chsh -s /home/linuxbrew/.linuxbrew/bin/fish
+        
+        # Change shell
+        chsh -s "$zsh_path"
         print_warning "Shell change will take effect after you log out and back in"
+    else
+        print_status "Zsh is already the default shell"
     fi
 }
 
@@ -332,25 +274,6 @@ install_network_tools() {
     fi
     
     print_success "Network tools installation complete"
-    
-    # Detailed post-installation instructions
-    echo "
-    Network Tools Post-Installation Steps:
-
-    Tailscale:
-    - To start Tailscale: sudo tailscale up
-    - To get status: tailscale status
-    - To disable: sudo tailscale down
-
-    ZeroTier:
-    - To join a network: sudo zerotier-cli join <your-network-id>
-    - To check status: sudo zerotier-cli status
-    - To leave a network: sudo zerotier-cli leave <your-network-id>
-
-    Note: You can enable/disable these services as needed using:
-    - Tailscale: sudo systemctl enable/disable tailscaled
-    - ZeroTier: sudo systemctl enable/disable zerotier-one
-    "
 }
 
 install_remote_access_tools() {
@@ -491,10 +414,10 @@ install_miniconda() {
     # Initialize conda for shells
     print_status "Initializing conda..."
     ~/miniconda3/bin/conda init bash
-    ~/miniconda3/bin/conda init fish
+    ~/miniconda3/bin/conda init zsh
 
     print_success "Miniconda installation complete"
-    print_warning "Please restart your shell or run 'source ~/.bashrc' to use conda"
+    print_warning "Please restart your shell or run 'source ~/.zshrc' to use conda"
 }
 
 install_gdu() {
@@ -604,7 +527,7 @@ verify_setup() {
     print_status "Verifying installation..."
 
     local tools=(
-        fish starship wezterm zellij nvim rg fzf fd ghq
+        zsh starship wezterm zellij nvim rg fzf fd ghq
         zoxide tree bat eza git yazi duf btm tree-sitter
     )
 
@@ -647,35 +570,51 @@ verify_setup() {
     [ $missing -eq 1 ] && print_warning "Some tools are missing. Check the logs."
 }
 
+# Improved execute_subscript function with better error handling
 execute_subscript() {
     local script_name="$1"
     local script_path
     script_path="$(dirname "$(realpath "$0")")/$script_name"
 
+    # Check if script exists
     if [[ ! -f "$script_path" ]]; then
-        print_error "Script not found: $script_name"
-        return 1
+        print_warning "Script not found: $script_name - skipping"
+        return 0  # Return 0 to continue with other installations
+    fi
+
+    # Check if script is executable
+    if [[ ! -x "$script_path" ]]; then
+        print_status "Making $script_name executable..."
+        chmod +x "$script_path"
     fi
 
     print_status "Executing $script_name..."
 
-    local brew_prefix
-    brew_prefix="$(brew --prefix)"
-    export BREW_PREFIX="$brew_prefix"
-
-    (
-        cd "$(dirname "$script_path")"
-        source "$script_path"
-        if declare -F "install_node_environment" >/dev/null; then
-            install_node_environment
-        fi
-    )
-
-    local exit_code=$?
-    if [[ $exit_code -ne 0 ]]; then
+    # Export variables for the subscript
+    export BREW_PREFIX="$(brew --prefix 2>/dev/null || echo "")"
+    
+    # Execute the script in a subshell
+    if bash "$script_path"; then
+        print_success "$script_name completed successfully"
+    else
+        local exit_code=$?
         print_error "$script_name failed with exit code $exit_code"
         return $exit_code
     fi
+}
+
+# Function to install SSH tools (removed SSH requirement)
+install_ssh_tools() {
+    print_status "Installing SSH tools"
+    
+    # Install SSH client tools
+    sudo apt install -y openssh-client sshpass
+    
+    # Install SSH askpass
+    sudo apt install -y ssh-askpass-gnome || sudo apt install -y ssh-askpass
+    
+    print_success "SSH tools installed"
+    print_status "You can configure SSH keys later if needed"
 }
 
 main() {
@@ -697,9 +636,8 @@ main() {
                 ;;
         esac
 
-        # For all other commands
+        # For all other commands - removed SSH check
         check_system
-        check_ssh_setup
         maintain_sudo
         sudo apt update && sudo apt upgrade -y
 
@@ -714,7 +652,6 @@ main() {
                 execute_subscript "rust.sh"
                 execute_subscript "go.sh"
                 install_browsers
-                setup_chezmoi
                 install_ssh_tools
                 install_network_tools
                 install_nerd_fonts
@@ -768,9 +705,8 @@ main() {
     actsellistbox=white,blue
     '
 
-    # Initial checks
+    # Initial checks - removed SSH check
     check_system
-    check_ssh_setup
     maintain_sudo
 
     # Install Homebrew if needed
@@ -784,7 +720,7 @@ main() {
     options=(
         "0" "Install All Components" ON
         "1" "Base Development Tools" OFF
-        "2" "Shell Tools" OFF
+        "2" "Shell Tools (Zsh)" OFF
         "3" "Version Control Tools" OFF
         "4" "Miniconda" OFF
         "5" "Neovim Setup" OFF
@@ -792,13 +728,12 @@ main() {
         "7" "Rust Tools" OFF
         "8" "Go Environment" OFF
         "9" "Browsers" OFF
-        "10" "Chezmoi Dotfiles" OFF
-        "11" "SSH Tools" OFF
-        "12" "Network Tools" OFF
-        "13" "Nerd Fonts" OFF
-        "14" "Remote Access Tools" OFF
-        "15" "VirtualBox" OFF
-        "16" "Update GRUB Configuration" OFF
+        "10" "SSH Tools" OFF
+        "11" "Network Tools" OFF
+        "12" "Nerd Fonts" OFF
+        "13" "Remote Access Tools" OFF
+        "14" "VirtualBox" OFF
+        "15" "Update GRUB Configuration" OFF
     )
 
     choices=$(whiptail --title "Installation Options" \
@@ -827,7 +762,6 @@ main() {
         execute_subscript "rust.sh"
         execute_subscript "go.sh"
         install_browsers
-        setup_chezmoi
         install_ssh_tools
         install_network_tools
         install_nerd_fonts
@@ -845,13 +779,12 @@ main() {
         [[ $choices == *'"7"'* ]] && execute_subscript "rust.sh"
         [[ $choices == *'"8"'* ]] && execute_subscript "go.sh"
         [[ $choices == *'"9"'* ]] && install_browsers
-        [[ $choices == *'"10"'* ]] && setup_chezmoi
-        [[ $choices == *'"11"'* ]] && install_ssh_tools
-        [[ $choices == *'"12"'* ]] && install_network_tools
-        [[ $choices == *'"13"'* ]] && install_nerd_fonts
-        [[ $choices == *'"14"'* ]] && install_remote_access_tools
-        [[ $choices == *'"15"'* ]] && execute_subscript "virtualbox.sh"
-        [[ $choices == *'"16"'* ]] && update_grub_config
+        [[ $choices == *'"10"'* ]] && install_ssh_tools
+        [[ $choices == *'"11"'* ]] && install_network_tools
+        [[ $choices == *'"12"'* ]] && install_nerd_fonts
+        [[ $choices == *'"13"'* ]] && install_remote_access_tools
+        [[ $choices == *'"14"'* ]] && execute_subscript "virtualbox.sh"
+        [[ $choices == *'"15"'* ]] && update_grub_config
     fi
 
     verify_setup
