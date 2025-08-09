@@ -38,7 +38,7 @@ ensure_brew_env() {
 install_essential_dependencies() {
     print_status "Installing essential dependencies..."
     sudo apt update
-    sudo apt install -y build-essential curl git wget ca-certificates
+    sudo apt install -y build-essential curl git wget ca-certificates unzip jq
     print_success "Essential dependencies installed"
 }
 
@@ -526,8 +526,9 @@ install_gdu() {
     print_success "GDU installed to ~/.local/bin/gdu"
 }
 
+# Improved GRUB configuration function
 update_grub_config() {
-    print_status "Updating GRUB configuration..."
+    print_status "GRUB Configuration Options"
     
     # Backup original grub file if backup doesn't exist
     if [ ! -f "/etc/default/grub.backup" ]; then
@@ -535,71 +536,76 @@ update_grub_config() {
         print_status "Created backup of original GRUB configuration"
     fi
 
-    # Define required kernel parameters
-    local required_params=(
-        "pci=nommconf"
-    )
+    # Show current configuration
+    print_status "Current GRUB configuration:"
+    grep "GRUB_CMDLINE_LINUX_DEFAULT" /etc/default/grub
 
-    # Read current GRUB configuration
-    local current_cmdline
-    current_cmdline=$(grep "^GRUB_CMDLINE_LINUX_DEFAULT=" /etc/default/grub | cut -d'"' -f2)
-    
-    # Create a temporary file for the new configuration
-    local temp_grub
-    temp_grub=$(mktemp)
-    
-    # Process the configuration
-    while IFS= read -r line; do
-        if [[ $line =~ ^GRUB_CMDLINE_LINUX_DEFAULT= ]]; then
-            # Start with an empty parameter set
-            local new_params=()
-            
-            # Add existing parameters that aren't in our required set
-            for param in $current_cmdline; do
-                found=0
-                for req in "${required_params[@]}"; do
-                    if [ "$param" = "$req" ]; then
-                        found=1
-                        break
-                    fi
-                done
-                if [ "$found" -eq 0 ] && [[ $param != GRUB_CMDLINE_LINUX_DEFAULT* ]]; then
-                    new_params+=("$param")
-                fi
-            done
-            
-            # Add our required parameters
-            new_params+=("${required_params[@]}")
-            
-            # Join parameters with spaces
-            local new_cmdline
-            new_cmdline=$(printf "%s " "${new_params[@]}" | sed 's/ $//')
-            
-            # Write the new line
-            echo "GRUB_CMDLINE_LINUX_DEFAULT=\"$new_cmdline\"" >> "$temp_grub"
-        else
-            echo "$line" >> "$temp_grub"
-        fi
-    done < /etc/default/grub
-    
-    # Verify the new configuration
-    if grep -q "^GRUB_CMDLINE_LINUX_DEFAULT=" "$temp_grub"; then
-        # Apply the new configuration
-        sudo cp "$temp_grub" /etc/default/grub
-        print_status "Updated GRUB parameters"
+    # Ask user what they want to do with GRUB
+    if command -v whiptail >/dev/null 2>&1; then
+        GRUB_CHOICE=$(whiptail --title "GRUB Configuration" --menu "Choose GRUB configuration option:" 16 80 5 \
+            "1" "Remove 'quiet splash' (show detailed boot messages)" \
+            "2" "Keep current settings (recommended)" \
+            "3" "Reset to minimal settings (no parameters)" \
+            "4" "Add custom kernel parameters" \
+            "5" "Skip GRUB configuration" \
+            3>&1 1>&2 2>&3)
     else
-        print_error "Failed to update GRUB configuration"
-        rm "$temp_grub"
-        return 1
+        echo ""
+        echo "GRUB Configuration Options:"
+        echo "1) Remove 'quiet splash' (show detailed boot messages)"
+        echo "2) Keep current settings (recommended)"
+        echo "3) Reset to minimal settings (no parameters)"
+        echo "4) Add custom kernel parameters"
+        echo "5) Skip GRUB configuration"
+        read -p "Choose an option (1-5): " GRUB_CHOICE
     fi
-    
-    # Clean up
-    rm "$temp_grub"
+
+    case $GRUB_CHOICE in
+        1)
+            # Remove quiet splash
+            print_status "Removing 'quiet splash' from GRUB..."
+            sudo sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"/GRUB_CMDLINE_LINUX_DEFAULT=""/' /etc/default/grub
+            sudo sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT=".*quiet.*splash.*"/GRUB_CMDLINE_LINUX_DEFAULT=""/' /etc/default/grub
+            ;;
+        2)
+            print_status "Keeping current GRUB settings..."
+            return 0
+            ;;
+        3)
+            # Reset to minimal
+            print_status "Resetting GRUB to minimal settings..."
+            sudo sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT=".*"/GRUB_CMDLINE_LINUX_DEFAULT=""/' /etc/default/grub
+            ;;
+        4)
+            # Add custom parameters
+            print_status "Current GRUB configuration:"
+            grep "GRUB_CMDLINE_LINUX_DEFAULT" /etc/default/grub
+            echo ""
+            echo "Common kernel parameters:"
+            echo "  pci=nommconf          - Disable memory-mapped PCI config (for old hardware)"
+            echo "  usbcore.autosuspend=-1 - Disable USB autosuspend"
+            echo "  systemd.unit=multi-user.target - Boot to text mode"
+            echo ""
+            read -p "Enter additional kernel parameters (or press Enter to skip): " custom_params
+            if [ -n "$custom_params" ]; then
+                current_cmdline=$(grep "^GRUB_CMDLINE_LINUX_DEFAULT=" /etc/default/grub | cut -d'"' -f2)
+                new_cmdline="$current_cmdline $custom_params"
+                sudo sed -i "s|GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"$new_cmdline\"|" /etc/default/grub
+                print_status "Added custom parameters: $custom_params"
+            fi
+            ;;
+        5|*)
+            print_status "Skipping GRUB configuration"
+            return 0
+            ;;
+    esac
     
     # Update GRUB
     if sudo update-grub; then
         print_success "GRUB configuration updated successfully"
-        print_warning "A system reboot is required for changes to take effect"
+        print_status "New GRUB configuration:"
+        grep "GRUB_CMDLINE_LINUX_DEFAULT" /etc/default/grub
+        print_warning "Reboot required for GRUB changes to take effect"
     else
         print_error "Failed to update GRUB"
         return 1
@@ -653,6 +659,32 @@ verify_setup() {
     [ $missing -eq 1 ] && print_warning "Some tools are missing. Check the logs."
 }
 
+# Improved dotfiles setup function
+setup_dotfiles_integrated() {
+    print_status "Setting up dotfiles configuration"
+    
+    # Check if dotfiles.sh exists
+    if [ -f "./dotfiles.sh" ]; then
+        print_status "Found dotfiles.sh script, executing..."
+        
+        # Make sure it's executable
+        chmod +x ./dotfiles.sh
+        
+        # Run the dotfiles script
+        if ./dotfiles.sh; then
+            print_success "Dotfiles setup completed successfully"
+        else
+            print_error "Dotfiles setup failed"
+            print_warning "You can run './dotfiles.sh' manually later"
+            return 1
+        fi
+    else
+        print_warning "dotfiles.sh not found in current directory"
+        print_status "Expected location: $(pwd)/dotfiles.sh"
+        print_status "You can run dotfiles setup manually later"
+    fi
+}
+
 # Improved execute_subscript function with better error handling
 execute_subscript() {
     local script_name="$1"
@@ -662,6 +694,7 @@ execute_subscript() {
     # Check if script exists
     if [[ ! -f "$script_path" ]]; then
         print_warning "Script not found: $script_name - skipping"
+        print_status "Expected location: $script_path"
         return 0  # Return 0 to continue with other installations
     fi
 
@@ -737,7 +770,7 @@ main() {
                 execute_subscript "rust.sh"
                 execute_subscript "go.sh"
                 install_browsers
-                execute_subscript "dotfiles.sh"
+                setup_dotfiles_integrated
                 install_ssh_tools
                 install_network_tools
                 install_nerd_fonts
@@ -755,7 +788,7 @@ main() {
                 setup_neovim
                 ;;
             "dotfiles")
-                execute_subscript "dotfiles.sh"
+                setup_dotfiles_integrated
                 ;;
             "grub")
                 update_grub_config
@@ -851,7 +884,7 @@ main() {
         execute_subscript "rust.sh"
         execute_subscript "go.sh"
         install_browsers
-        execute_subscript "dotfiles.sh"
+        setup_dotfiles_integrated
         install_ssh_tools
         install_network_tools
         install_nerd_fonts
@@ -869,7 +902,7 @@ main() {
         [[ $choices == *'"7"'* ]] && execute_subscript "rust.sh"
         [[ $choices == *'"8"'* ]] && execute_subscript "go.sh"
         [[ $choices == *'"9"'* ]] && install_browsers
-        [[ $choices == *'"10"'* ]] && execute_subscript "dotfiles.sh"
+        [[ $choices == *'"10"'* ]] && setup_dotfiles_integrated
         [[ $choices == *'"11"'* ]] && install_ssh_tools
         [[ $choices == *'"12"'* ]] && install_network_tools
         [[ $choices == *'"13"'* ]] && install_nerd_fonts
