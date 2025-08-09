@@ -11,10 +11,93 @@ if [ "$EUID" -eq 0 ]; then
     exit 1
 fi
 
-# Add this helper function at the top of the script
+# Improved ensure_brew_env function
 ensure_brew_env() {
-    if ! command -v brew &>/dev/null; then
+    # First check if brew is already available
+    if command -v brew &>/dev/null; then
+        return 0
+    fi
+    
+    # Try to source Homebrew environment
+    if [ -f "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        
+        # Verify it worked
+        if command -v brew &>/dev/null; then
+            return 0
+        fi
+    fi
+    
+    # If we get here, Homebrew is not properly installed
+    print_error "Homebrew is not properly installed or configured"
+    print_status "Please run the full installation first or install Homebrew manually"
+    exit 1
+}
+
+# Install essential dependencies first
+install_essential_dependencies() {
+    print_status "Installing essential dependencies..."
+    sudo apt update
+    sudo apt install -y build-essential curl git wget ca-certificates
+    print_success "Essential dependencies installed"
+}
+
+# Install Homebrew with improved error handling
+install_homebrew() {
+    if command -v brew &>/dev/null; then
+        print_status "Homebrew already installed"
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" 2>/dev/null || true
+        return 0
+    fi
+
+    print_status "Installing Homebrew..."
+    
+    # Install Homebrew
+    if /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
+        print_success "Homebrew installation completed"
+    else
+        print_error "Homebrew installation failed"
+        exit 1
+    fi
+    
+    # Set up Homebrew environment
+    if [ -f "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        
+        # Add to shell profiles for persistence
+        {
+            echo ""
+            echo "# Homebrew"
+            echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"'
+        } >> ~/.bashrc
+        
+        {
+            echo ""
+            echo "# Homebrew"
+            echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"'
+        } >> ~/.profile
+        
+        # Create .zshrc if it doesn't exist and add Homebrew
+        if [ ! -f ~/.zshrc ]; then
+            touch ~/.zshrc
+        fi
+        {
+            echo ""
+            echo "# Homebrew"
+            echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"'
+        } >> ~/.zshrc
+        
+        # Verify installation
+        if command -v brew &>/dev/null; then
+            print_success "Homebrew installed and configured successfully"
+            print_status "Homebrew version: $(brew --version | head -1)"
+        else
+            print_error "Homebrew installation verification failed"
+            exit 1
+        fi
+    else
+        print_error "Homebrew installation failed - binary not found"
+        exit 1
     fi
 }
 
@@ -150,7 +233,7 @@ install_base_development() {
     fi
 
     # System packages
-    sudo apt install -y build-essential curl python3-pip pipx python3-venv ca-certificates \
+    sudo apt install -y python3-pip pipx python3-venv \
         fuse libfuse2 markdown shellcheck xclip xsel
 
     # Homebrew packages
@@ -637,10 +720,11 @@ main() {
                 ;;
         esac
 
-        # For all other commands
+        # For all other commands, run initial setup
         check_system
         maintain_sudo
-        sudo apt update && sudo apt upgrade -y
+        install_essential_dependencies
+        install_homebrew
 
         case "$1" in
             "all")
@@ -714,12 +798,11 @@ main() {
     check_system
     maintain_sudo
 
-    # Install Homebrew if needed
-    if ! command -v brew &>/dev/null; then
-        print_status "Installing Homebrew"
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-    fi
+    # Install essential dependencies first
+    install_essential_dependencies
+
+    # Install Homebrew
+    install_homebrew
 
     # Installation options
     options=(
