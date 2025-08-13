@@ -38,7 +38,8 @@ ensure_brew_env() {
 install_essential_dependencies() {
     print_status "Installing essential dependencies..."
     sudo apt update
-    sudo apt install -y build-essential curl git wget ca-certificates unzip jq
+    sudo apt install -y build-essential curl git wget ca-certificates unzip jq \
+        pkg-config libssl-dev libgit2-dev libcurl4-openssl-dev
     print_success "Essential dependencies installed"
 }
 
@@ -689,35 +690,61 @@ setup_dotfiles_integrated() {
 execute_subscript() {
     local script_name="$1"
     local script_path
+    local is_optional="${2:-false}"  # Second parameter for optional scripts
+    
     script_path="$(dirname "$(realpath "$0")")/$script_name"
 
     # Check if script exists
     if [[ ! -f "$script_path" ]]; then
-        print_warning "Script not found: $script_name - skipping"
-        print_status "Expected location: $script_path"
-        return 0  # Return 0 to continue with other installations
+        if [[ "$is_optional" == "true" ]]; then
+            print_warning "Optional script not found: $script_name - skipping"
+        else
+            print_error "Required script not found: $script_name"
+            print_status "Expected location: $script_path"
+            return 1
+        fi
+        return 0
     fi
 
     # Check if script is executable
     if [[ ! -x "$script_path" ]]; then
         print_status "Making $script_name executable..."
-        chmod +x "$script_path"
+        chmod +x "$script_path" || {
+            print_error "Failed to make $script_name executable"
+            return 1
+        }
     fi
 
     print_status "Executing $script_name..."
 
     # Export variables for the subscript
     export BREW_PREFIX="$(brew --prefix 2>/dev/null || echo "")"
+    export SCRIPT_DIR="$(dirname "$(realpath "$0")")"
     
-    # Execute the script in a subshell
-    if bash "$script_path"; then
+    # Execute the script with timeout for safety
+    if timeout 1800 bash "$script_path"; then  # 30 minute timeout
         print_success "$script_name completed successfully"
     else
         local exit_code=$?
-        print_error "$script_name failed with exit code $exit_code"
-        return $exit_code
+        if [[ $exit_code -eq 124 ]]; then
+            print_error "$script_name timed out after 30 minutes"
+        else
+            print_error "$script_name failed with exit code $exit_code"
+        fi
+        
+        if [[ "$is_optional" == "true" ]]; then
+            print_warning "Continuing installation despite $script_name failure..."
+            return 0
+        else
+            return $exit_code
+        fi
     fi
 }
+
+# Usage examples:
+# execute_subscript "node.sh" true    # Optional script
+# execute_subscript "rust.sh" false   # Required script
+
 
 # Function to install SSH tools (no SSH key requirements)
 install_ssh_tools() {
