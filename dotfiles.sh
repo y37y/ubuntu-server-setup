@@ -64,11 +64,13 @@ setup_wezterm_dotfiles() {
     # Clone or update repository
     if [ ! -d "$repo_dir" ]; then
         print_status "Cloning WezTerm dotfiles repository..."
-        git clone https://github.com/y37y/wezterm.git "$repo_dir"
+        git clone --recursive https://github.com/y37y/wezterm-ubuntu.git "$repo_dir"
     else
         print_status "Updating WezTerm dotfiles repository..."
         cd "$repo_dir"
         git pull origin main || git pull origin master
+        # Update submodules (for wezterm-session-manager)
+        git submodule update --init --recursive
         cd - > /dev/null
     fi
 
@@ -79,17 +81,34 @@ setup_wezterm_dotfiles() {
     [ -L "$config_dir/wezterm.lua" ] && rm "$config_dir/wezterm.lua"
     [ -L "$HOME/.wezterm.lua" ] && rm "$HOME/.wezterm.lua"
 
-    # Create symlinks or copy files
+    # Link all configuration files
     if [ -f "$repo_dir/wezterm.lua" ]; then
         ln -sf "$repo_dir/wezterm.lua" "$config_dir/wezterm.lua"
-        print_success "WezTerm configuration linked to ~/.config/wezterm/"
+        print_success "WezTerm main configuration linked"
     elif [ -f "$repo_dir/.wezterm.lua" ]; then
         ln -sf "$repo_dir/.wezterm.lua" "$HOME/.wezterm.lua"
         print_success "WezTerm configuration linked to home directory"
     else
-        print_warning "WezTerm configuration file not found in repository"
-        ls -la "$repo_dir" | head -10  # Show what's in the repo for debugging
+        print_warning "WezTerm main configuration file not found"
     fi
+
+    # Link additional lua files (appearance.lua, etc.)
+    for lua_file in "$repo_dir"/*.lua; do
+        if [ -f "$lua_file" ] && [ "$(basename "$lua_file")" != "wezterm.lua" ]; then
+            ln -sf "$lua_file" "$config_dir/$(basename "$lua_file")"
+        fi
+    done
+
+    # Link subdirectories (like wezterm-session-manager)
+    for subdir in "$repo_dir"/*/; do
+        if [ -d "$subdir" ]; then
+            local dirname=$(basename "$subdir")
+            [ -L "$config_dir/$dirname" ] && rm "$config_dir/$dirname"
+            ln -sf "$subdir" "$config_dir/$dirname"
+        fi
+    done
+
+    print_success "WezTerm dotfiles setup complete"
 }
 
 setup_kitty_dotfiles() {
@@ -289,6 +308,12 @@ update_all_dotfiles() {
             print_status "Updating $repo..."
             cd "$repo_dir"
             git pull origin main || git pull origin master
+            
+            # Update submodules for wezterm
+            if [ "$repo" = "wezterm" ]; then
+                git submodule update --init --recursive
+            fi
+            
             cd - > /dev/null
             print_success "$repo updated"
         else
