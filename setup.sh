@@ -17,17 +17,17 @@ ensure_brew_env() {
     if command -v brew &>/dev/null; then
         return 0
     fi
-    
+
     # Try to source Homebrew environment
     if [ -f "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        
+
         # Verify it worked
         if command -v brew &>/dev/null; then
             return 0
         fi
     fi
-    
+
     # If we get here, Homebrew is not properly installed
     print_error "Homebrew is not properly installed or configured"
     print_status "Please run the full installation first or install Homebrew manually"
@@ -52,7 +52,7 @@ install_homebrew() {
     fi
 
     print_status "Installing Homebrew..."
-    
+
     # Install Homebrew
     if /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
         print_success "Homebrew installation completed"
@@ -60,24 +60,24 @@ install_homebrew() {
         print_error "Homebrew installation failed"
         exit 1
     fi
-    
+
     # Set up Homebrew environment
     if [ -f "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        
+
         # Add to shell profiles for persistence
         {
             echo ""
             echo "# Homebrew"
             echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"'
         } >> ~/.bashrc
-        
+
         {
             echo ""
             echo "# Homebrew"
             echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"'
         } >> ~/.profile
-        
+
         # Create .zshrc if it doesn't exist and add Homebrew
         if [ ! -f ~/.zshrc ]; then
             touch ~/.zshrc
@@ -87,7 +87,7 @@ install_homebrew() {
             echo "# Homebrew"
             echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"'
         } >> ~/.zshrc
-        
+
         # Verify installation
         if command -v brew &>/dev/null; then
             print_success "Homebrew installed and configured successfully"
@@ -157,11 +157,11 @@ setup_neovim() {
         print_status "Installing your Neovim configuration..."
         git clone --recursive https://github.com/y37y/nvim.git ~/.config/nvim
         cd ~/.config/nvim
-        
+
         # Set up upstream remote
         git remote add upstream https://github.com/chaozwn/astronvim_user
         git fetch upstream
-        
+
         # Initialize and update submodules
         git submodule update --init --recursive --force
         git submodule foreach git pull origin master
@@ -191,9 +191,9 @@ setup_zsh_environment() {
     if [ ! -d "$HOME/.config/zsh" ]; then
         print_status "Cloning Zsh configuration..."
         git clone https://github.com/y37y/zsh.git "$HOME/.config/zsh"
-        
+
         cd "$HOME/.config/zsh"
-        
+
         # Run the installer
         if [ -f "./install.sh" ]; then
             print_status "Running Zsh configuration installer..."
@@ -203,14 +203,14 @@ setup_zsh_environment() {
             # Manual setup if install.sh doesn't exist
             print_status "Manually setting up Zsh configuration..."
             cp .zshrc ~/.zshrc
-            
+
             # Copy starship config if it exists
             if [ -f "starship.toml" ]; then
                 mkdir -p ~/.config
                 cp starship.toml ~/.config/starship.toml
             fi
         fi
-        
+
         cd - > /dev/null
     else
         print_status "Zsh configuration already exists, updating..."
@@ -284,7 +284,7 @@ install_shell_tools() {
 
 change_default_shell() {
     local zsh_path
-    
+
     # Try to find zsh in common locations
     if command -v zsh &>/dev/null; then
         zsh_path=$(which zsh)
@@ -296,12 +296,12 @@ change_default_shell() {
 
     if [[ "$SHELL" != "$zsh_path" ]]; then
         print_status "Changing default shell to zsh..."
-        
+
         # Add zsh to /etc/shells if not already there
         if ! grep -q "$zsh_path" /etc/shells; then
             echo "$zsh_path" | sudo tee -a /etc/shells
         fi
-        
+
         # Change shell
         chsh -s "$zsh_path"
         print_warning "Shell change will take effect after you log out and back in"
@@ -338,7 +338,7 @@ install_browsers() {
 
 install_network_tools() {
     print_status "Installing network tools"
-    
+
     # Install Tailscale
     if ! command -v tailscale &>/dev/null; then
         print_status "Installing Tailscale..."
@@ -347,7 +347,7 @@ install_network_tools() {
     else
         print_status "Tailscale is already installed"
     fi
-    
+
     # Install ZeroTier
     if ! command -v zerotier-cli &>/dev/null; then
         print_status "Installing ZeroTier..."
@@ -356,7 +356,7 @@ install_network_tools() {
     else
         print_status "ZeroTier is already installed"
     fi
-    
+
     print_success "Network tools installation complete"
 }
 
@@ -372,10 +372,10 @@ install_remote_access_tools() {
     sudo systemctl enable ssh
     sudo systemctl start ssh
 
-    # Install NoMachine
+    # Install NoMachine (pinned for stability; update when you want)
     print_status "Installing NoMachine..."
 
-    # Latest stable version of NoMachine
+    # Latest known stable version (update manually if desired)
     NOMACHINE_VERSION="8.14.2"
     NOMACHINE_URL="https://download.nomachine.com/download/${NOMACHINE_VERSION%.*}/Linux/nomachine_${NOMACHINE_VERSION}_1_amd64.deb"
 
@@ -412,24 +412,35 @@ install_nerd_fonts() {
 
 install_nerd_fonts_getnf() {
     print_status "Installing getnf..."
-    
+
     # Ensure required dependencies
     if ! command -v curl >/dev/null 2>&1; then
         print_error "curl is required for getnf installation"
         return 1
     fi
 
-    # Install getnf
-    if ! curl -fsSL https://raw.githubusercontent.com/getnf/getnf/main/install.sh | bash; then
-        print_error "Failed to install getnf"
+    # Install getnf if missing
+    if ! command -v getnf >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/getnf" ]; then
+        if ! curl -fsSL https://raw.githubusercontent.com/getnf/getnf/main/install.sh | bash; then
+            print_error "Failed to install getnf"
+            return 1
+        fi
+    fi
+
+    # Ensure ~/.local/bin is on PATH for this run
+    export PATH="$HOME/.local/bin:$PATH"
+    local GETNF="${GETNF:-$HOME/.local/bin/getnf}"
+
+    if [ ! -x "$GETNF" ]; then
+        print_error "getnf not found at $GETNF"
         return 1
     fi
 
     print_status "Installing fonts using getnf..."
     if command -v fzf >/dev/null 2>&1; then
-        getnf -f  # Use interactive fzf selection if available
+        "$GETNF" -f  # interactive selection with fzf
     else
-        getnf     # Fall back to standard selection
+        "$GETNF"     # standard selection
     fi
 
     # Update font cache
@@ -447,7 +458,8 @@ install_nerd_fonts_default() {
     mkdir -p "$fonts_dir"
 
     # Get latest version from GitHub API
-    local version=$(curl -s 'https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest' | jq -r '.name')
+    local version
+    version=$(curl -s 'https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest' | jq -r '.name')
     if [ -z "$version" ] || [ "$version" = "null" ]; then
         version="v3.3.0"
     fi
@@ -508,7 +520,8 @@ install_gdu() {
     print_status "Installing GDU (Go Disk Usage)"
 
     # Create temporary directory
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
     cd "$temp_dir"
 
     # Download and extract latest GDU
@@ -530,7 +543,7 @@ install_gdu() {
 # Improved GRUB configuration function
 update_grub_config() {
     print_status "GRUB Configuration Options"
-    
+
     # Backup original grub file if backup doesn't exist
     if [ ! -f "/etc/default/grub.backup" ]; then
         sudo cp /etc/default/grub /etc/default/grub.backup
@@ -600,7 +613,7 @@ update_grub_config() {
             return 0
             ;;
     esac
-    
+
     # Update GRUB
     if sudo update-grub; then
         print_success "GRUB configuration updated successfully"
@@ -663,14 +676,14 @@ verify_setup() {
 # Improved dotfiles setup function
 setup_dotfiles_integrated() {
     print_status "Setting up dotfiles configuration"
-    
+
     # Check if dotfiles.sh exists
     if [ -f "./dotfiles.sh" ]; then
         print_status "Found dotfiles.sh script, executing..."
-        
+
         # Make sure it's executable
         chmod +x ./dotfiles.sh
-        
+
         # Run the dotfiles script
         if ./dotfiles.sh; then
             print_success "Dotfiles setup completed successfully"
@@ -691,7 +704,7 @@ execute_subscript() {
     local script_name="$1"
     local script_path
     local is_optional="${2:-false}"  # Second parameter for optional scripts
-    
+
     script_path="$(dirname "$(realpath "$0")")/$script_name"
 
     # Check if script exists
@@ -720,9 +733,15 @@ execute_subscript() {
     # Export variables for the subscript
     export BREW_PREFIX="$(brew --prefix 2>/dev/null || echo "")"
     export SCRIPT_DIR="$(dirname "$(realpath "$0")")"
-    
-    # Execute the script with timeout for safety
-    if timeout 1800 bash "$script_path"; then  # 30 minute timeout
+
+    # Execute the script with timeout for safety, from its own directory
+    local run_dir
+    run_dir="$(dirname "$script_path")"
+    if timeout 1800 bash -c "
+        set -e
+        cd \"$run_dir\"
+        bash \"$script_path\"
+    "; then  # 30 minute timeout
         print_success "$script_name completed successfully"
     else
         local exit_code=$?
@@ -731,7 +750,7 @@ execute_subscript() {
         else
             print_error "$script_name failed with exit code $exit_code"
         fi
-        
+
         if [[ "$is_optional" == "true" ]]; then
             print_warning "Continuing installation despite $script_name failure..."
             return 0
@@ -741,21 +760,16 @@ execute_subscript() {
     fi
 }
 
-# Usage examples:
-# execute_subscript "node.sh" true    # Optional script
-# execute_subscript "rust.sh" false   # Required script
-
-
 # Function to install SSH tools (no SSH key requirements)
 install_ssh_tools() {
     print_status "Installing SSH tools"
-    
+
     # Install SSH client tools
     sudo apt install -y openssh-client sshpass
-    
+
     # Install SSH askpass
     sudo apt install -y ssh-askpass-gnome || sudo apt install -y ssh-askpass
-    
+
     print_success "SSH tools installed"
     print_status "You can configure SSH keys later if needed"
 }
@@ -767,10 +781,11 @@ main() {
             "help"|"-h"|"--help")
                 echo "Usage: $0 [command]"
                 echo "Commands:"
-                echo "  all      - Install all components"
+                echo "  all      - Install all components (VirtualBox excluded)"
                 echo "  base     - Install base development tools"
                 echo "  shell    - Install shell tools"
-                echo "  neovim   - Install Neovim"
+                echo "  neovim   - Install Neovim (expects Node if you want Node provider)"
+                echo "  node     - Install Node.js environment"
                 echo "  dotfiles - Setup dotfiles configuration"
                 echo "  grub     - Update GRUB configuration"
                 echo "  help     - Show this help message"
@@ -792,8 +807,9 @@ main() {
                 install_shell_tools
                 install_version_control
                 install_miniconda
-                setup_neovim
+                # Install Node BEFORE Neovim
                 execute_subscript "node.sh"
+                setup_neovim
                 execute_subscript "rust.sh"
                 execute_subscript "go.sh"
                 install_browsers
@@ -802,7 +818,7 @@ main() {
                 install_network_tools
                 install_nerd_fonts
                 install_remote_access_tools
-                execute_subscript "virtualbox.sh"
+                # VirtualBox intentionally excluded (manual install)
                 update_grub_config
                 ;;
             "base")
@@ -813,6 +829,9 @@ main() {
                 ;;
             "neovim")
                 setup_neovim
+                ;;
+            "node")
+                execute_subscript "node.sh"
                 ;;
             "dotfiles")
                 setup_dotfiles_integrated
@@ -866,7 +885,7 @@ main() {
 
     # Installation options
     options=(
-        "0" "Install All Components" ON
+        "0" "Install All Components (VirtualBox excluded)" ON
         "1" "Base Development Tools" OFF
         "2" "Shell Tools (Zsh)" OFF
         "3" "Version Control Tools" OFF
@@ -880,8 +899,8 @@ main() {
         "11" "SSH Tools" OFF
         "12" "Network Tools" OFF
         "13" "Nerd Fonts" OFF
-        "14" "Remote Access Tools" OFF
-        "15" "VirtualBox" OFF
+        "14" "Remote Access Tools (NoMachine + SSH)" OFF
+        "15" "VirtualBox (Removed — install manually)" OFF
         "16" "Update GRUB Configuration" OFF
     )
 
@@ -901,13 +920,13 @@ main() {
 
     # Process installations
     if [[ $choices == *'"0"'* ]]; then
-        # Install everything
+        # Install everything (VirtualBox excluded)
         install_base_development
         install_shell_tools
         install_version_control
         install_miniconda
-        setup_neovim
         execute_subscript "node.sh"
+        setup_neovim
         execute_subscript "rust.sh"
         execute_subscript "go.sh"
         install_browsers
@@ -916,16 +935,27 @@ main() {
         install_network_tools
         install_nerd_fonts
         install_remote_access_tools
-        execute_subscript "virtualbox.sh"
         update_grub_config
     else
-        # Individual selections
+        # Individual selections (ensure Node before Neovim if both chosen)
+        node_selected=false
+        neovim_selected=false
+
+        [[ $choices == *'"6"'* ]] && node_selected=true
+        [[ $choices == *'"5"'* ]] && neovim_selected=true
+
+        # Always run Node before Neovim if both selected
+        if $node_selected; then
+            execute_subscript "node.sh"
+        fi
+        if $neovim_selected; then
+            setup_neovim
+        fi
+
         [[ $choices == *'"1"'* ]] && install_base_development
         [[ $choices == *'"2"'* ]] && install_shell_tools
         [[ $choices == *'"3"'* ]] && install_version_control
         [[ $choices == *'"4"'* ]] && install_miniconda
-        [[ $choices == *'"5"'* ]] && setup_neovim
-        [[ $choices == *'"6"'* ]] && execute_subscript "node.sh"
         [[ $choices == *'"7"'* ]] && execute_subscript "rust.sh"
         [[ $choices == *'"8"'* ]] && execute_subscript "go.sh"
         [[ $choices == *'"9"'* ]] && install_browsers
@@ -934,7 +964,9 @@ main() {
         [[ $choices == *'"12"'* ]] && install_network_tools
         [[ $choices == *'"13"'* ]] && install_nerd_fonts
         [[ $choices == *'"14"'* ]] && install_remote_access_tools
-        [[ $choices == *'"15"'* ]] && execute_subscript "virtualbox.sh"
+        if [[ $choices == *'"15"'* ]]; then
+            print_warning "VirtualBox install is removed from this script. Please download from the website and install manually."
+        fi
         [[ $choices == *'"16"'* ]] && update_grub_config
     fi
 
