@@ -1,6 +1,8 @@
 # Ubuntu Development Environment Setup
 
-Comprehensive setup scripts for Ubuntu-based systems, focusing on development tools, programming languages, and system configurations.
+Comprehensive setup scripts for Ubuntu-based systems, focusing on development tools, programming languages, system configurations, and **optional NVIDIA/CUDA** for local LLMs.
+
+---
 
 ## 🚀 Features
 
@@ -13,22 +15,9 @@ Comprehensive setup scripts for Ubuntu-based systems, focusing on development to
 
 ### Shell & Terminal
 - **Zsh shell** with modern configuration from [y37y/zsh](https://github.com/y37y/zsh)
-- **Terminal utilities:**
-  - fzf (fuzzy finder)
-  - eza (modern ls)
-  - atuin (shell history)
-  - zoxide (smart cd)
-  - ripgrep (modern grep)
-  - fd (find alternative)
-  - starship (shell prompt)
-  - bat/batcat (cat alternative)
-  - gdu (disk usage analyzer, installed from GitHub)
-  - trash-cli (trash management)
-  - yazi (terminal file manager)
-- **Terminal multiplexers:**
-  - tmux
-  - zellij
-- **WezTerm** terminal emulator
+- **Terminal utilities:** fzf, eza, atuin, zoxide, ripgrep, fd, starship, bat/batcat, gdu, trash-cli, yazi
+- **Terminal multiplexers:** tmux, zellij
+- **Terminal emulator:** WezTerm (kitty optional)
 
 ### Version Control
 - Git & Git LFS
@@ -39,146 +28,308 @@ Comprehensive setup scripts for Ubuntu-based systems, focusing on development to
 - difftastic (modern diff)
 
 ### Code Editors
-- Neovim with custom configuration
-- Git-managed Neovim config
+- Neovim with custom configuration (your repo)
 
 ### Browsers
-- Google Chrome
-- Microsoft Edge
-- Brave Browser
+- Google Chrome, Microsoft Edge, Brave Browser
 
 ### System Tools & Utilities
-- **System Monitoring:**
-  - bottom (btm - system monitor)
-  - htop (process viewer)
-  - btop (resource monitor)
-  - procs (modern ps)
-  - fastfetch (system info)
-  - dust (disk usage visualization)
-  - duf (disk usage utility)
-
-- **Development Utilities:**
-  - jq (JSON processor)
-  - yq (YAML processor)
-  - httpie (modern curl)
-  - tldr (simplified man pages)
-  - hyperfine (benchmarking)
-  - tokei (code statistics)
-  - tree-sitter-cli
-  - selene (Lua linter)
+- **Monitoring:** bottom (btm), htop, btop, procs, fastfetch, dust, duf
+- **Dev utils:** jq, yq, httpie, tldr, hyperfine, tokei, tree-sitter-cli, selene (Lua linter)
 
 ### Development Environment
 - Docker & Docker Compose
 - SSH tools with askpass support
 - Miniconda3 with Zsh integration
 
-### NVIDIA Support (Optional)
-- NVIDIA drivers
-- CUDA Toolkit 12.6.3
-- nvitop (GPU monitoring)
+### NVIDIA / CUDA (Optional; LLM-friendly)
+- NVIDIA proprietary drivers (e.g., 535 / 550)
+- CUDA Toolkit 12.x (for `nvcc`)
+- NVIDIA Container Toolkit (optional)
+- Notes for **pinning** driver/kernel to avoid breakage
 
-### Additional Features
-- Nerd Fonts collection
-- Direct Git-based configuration management
-- GRUB configuration (optional)
+### Extras
+- Nerd Fonts (via `getnf` or curated set)
+- GRUB configuration helper (optional)
+
+---
 
 ## 🔧 Requirements
 
-- Ubuntu 22.04/24.04
+- Ubuntu **22.04** or **24.04**
 - Internet connection
 - Sudo privileges
-- At least 1GB free disk space
-- NVIDIA GPU (for NVIDIA/CUDA installation)
+- ≥1 GB free disk space
+- NVIDIA GPU (only if using NVIDIA/CUDA)
+
+---
 
 ## 📦 Installation
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/y37y/ubuntu-setup.git
-   cd ubuntu-setup
-   ```
+1) **Clone the repository**
+```bash
+git clone https://github.com/y37y/ubuntu-setup.git
+cd ubuntu-setup
+````
 
-2. **Make scripts executable:**
-   ```bash
-   chmod +x *.sh
-   ```
+2. **Make scripts executable**
 
-3. **Run the main setup script:**
-   ```bash
-   ./setup.sh
-   ```
+```bash
+chmod +x *.sh
+```
 
-4. **Optional: Run individual components:**
-   ```bash
-   ./setup.sh base     # Base development tools
-   ./setup.sh shell    # Zsh and shell tools
-   ./setup.sh neovim   # Neovim setup
-   ./setup.sh grub     # GRUB configuration
-   ```
+3. **Run the main setup script**
 
-5. **Optional: Run NVIDIA setup separately:**
-   ```bash
-   ./nvidia.sh
-   ```
+```bash
+./setup.sh
+```
 
-## 🎯 Script Structure
+4. **Optional: Run individual components**
 
-- `setup.sh`: Main installation script
-- `common.sh`: Shared functions and utilities
-- `node.sh`: Node.js environment setup (fnm, npm packages)
-- `rust.sh`: Rust environment setup (rustup, cargo tools)
-- `go.sh`: Go environment setup
-- `nvidia.sh`: NVIDIA drivers and CUDA installation
-- `virtualbox.sh`: VirtualBox installation
+```bash
+./setup.sh base      # Base development tools
+./setup.sh shell     # Zsh + shell tools
+./setup.sh neovim    # Neovim + providers
+./setup.sh grub      # GRUB configuration
+```
 
-## 🛠 Installation Options
+5. **Optional: NVIDIA/CUDA setup**
 
-The script provides an interactive menu to select components:
+```bash
+./nvidia.sh
+```
 
-1. **Base Development Tools** - Essential build tools and utilities
-2. **Shell Tools (Zsh)** - Zsh shell with modern terminal utilities
-3. **Version Control Tools** - Git, Lazygit, GitHub CLI
-4. **Neovim Setup** - Neovim with custom configuration
-5. **Node.js Environment** - fnm and Node.js ecosystem
-6. **Rust Tools** - Rust toolchain and cargo utilities
-7. **Go Environment** - Go compiler and tools
-8. **Browsers** - Chrome, Edge, Brave
-9. **SSH Tools** - SSH client and utilities (no keys required)
-10. **Network Tools** - Tailscale, ZeroTier
-11. **Nerd Fonts** - Programming fonts collection
-12. **Remote Access Tools** - NoMachine, OpenSSH server
-13. **VirtualBox** - Virtualization platform
-14. **Update GRUB Configuration** - Kernel parameter optimization
+---
 
-## ⚙️ Configuration
+## 🧭 Script Structure
 
-- **Zsh configuration** is automatically cloned from [y37y/zsh](https://github.com/y37y/zsh)
-- **Neovim configuration** is cloned from your git repository
-- **Direct file management** - no complex dotfile managers required
-- **Homebrew integration** for latest tool versions
+* `setup.sh` — Main installer
+* `common.sh` — Shared helpers
+* `node.sh` — Node.js (fnm, npm/pnpm/yarn globals)
+* `rust.sh` — Rust toolchain
+* `go.sh` — Go environment
+* `nvidia.sh` — NVIDIA driver, CUDA toolkit, container runtime (optional)
+* `nvidia-upgrade.md` — Safe upgrade checklist (driver/kernel/CUDA)
+* `virtualbox.sh` — (Manual install recommended now)
+
+---
+
+## 🛠 Installation Options (Interactive)
+
+The installer shows a checklist. Highlights:
+
+1. Base Development Tools
+2. Shell Tools (Zsh)
+3. Version Control Tools
+4. Miniconda
+5. Neovim Setup
+6. Node.js Environment
+7. Rust Tools
+8. Go Environment
+9. Browsers
+10. Dotfiles Configuration
+11. SSH Tools
+12. Network Tools (Tailscale, ZeroTier)
+13. Nerd Fonts
+14. Remote Access Tools (NoMachine + SSH)
+15. VirtualBox (Removed here; install manually)
+16. Update GRUB Configuration
+
+---
+
+## 🟩 NVIDIA & CUDA (LLM-friendly guide)
+
+This repo ships a **safe, flag-driven** `nvidia.sh` so you can install just what you need (driver, CUDA, container runtime) and **freeze** versions to avoid `apt upgrade` surprises.
+
+### Quick picks (RTX 4090 + llama.cpp / SillyTavern)
+
+* **Driver:** `nvidia-driver-535` (very stable on 24.04)
+  Use `nvidia-driver-550` only if you need something newer.
+* **CUDA:** any **CUDA 12.x** works for building `llama.cpp` with GPU.
+* **Display server:** If GNOME/Wayland misbehaves with NVIDIA, switch to **Xorg** or use **KDE/SDDM**.
+
+### 1) Install the NVIDIA driver (and freeze it)
+
+**Scripted (recommended):**
+
+```bash
+# Stable:
+./nvidia.sh --driver 535 --hold-driver
+
+# Or newer:
+./nvidia.sh --driver 550 --hold-driver
+```
+
+**Manual via apt:**
+
+```bash
+sudo apt update
+sudo apt install -y ubuntu-drivers-common
+ubuntu-drivers list     # optional
+sudo apt install -y nvidia-driver-535
+sudo apt-mark hold nvidia-driver-535   # optional: freeze this version
+sudo reboot
+```
+
+> **Unfreeze later:** `sudo apt-mark unhold nvidia-driver-535`
+> **Extra cautious?** Also hold the current kernel:
+>
+> ```bash
+> KVER="$(uname -r)"
+> sudo apt-mark hold "linux-image-$KVER" "linux-headers-$KVER" "linux-modules-$KVER" "linux-modules-extra-$KVER" || true
+> ```
+
+### 2) Add CUDA Toolkit (to get `nvcc`)
+
+If you need to **compile** llama.cpp with CUDA:
+
+**Ubuntu-packaged toolkit (simple & works):**
+
+```bash
+sudo apt update
+sudo apt install -y nvidia-cuda-toolkit
+nvcc --version
+```
+
+**Or via script (choose CUDA without touching driver):**
+
+```bash
+./nvidia.sh --cuda 12.0
+```
+
+### 3) Build llama.cpp with CUDA
+
+```bash
+# deps
+sudo apt install -y cmake ninja-build build-essential
+
+# clone
+cd ~/Projects
+git clone https://github.com/ggml-org/llama.cpp.git
+cd llama.cpp
+
+# configure + build (Ada / RTX 4090 is SM_89)
+cmake -B build -S . \
+  -DGGML_CUDA=ON \
+  -DGGML_CUDA_ARCH_LIST="89" \
+  -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j"$(nproc)"
+
+# run server (example)
+~/Projects/llama.cpp/build/bin/llama-server \
+  --model ~/models/YOUR_MODEL.gguf \
+  --alias qwen3-coder-30b \
+  --host 127.0.0.1 --port 8080 --api-key KingKong555 \
+  --threads "$(nproc)" --n-gpu-layers 99 --ctx-size 33136
+```
+
+### 4) (Optional) NVIDIA Container Toolkit
+
+```bash
+# via script
+./nvidia.sh --container
+```
+
+**Manual (Docker):**
+
+```bash
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
+  | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
+  | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#' \
+  | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+sudo apt update
+sudo apt install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+```
+
+### 5) Verify
+
+```bash
+nvidia-smi
+nvcc --version       # if toolkit installed
+curl -s -H "Authorization: Bearer KingKong555" http://127.0.0.1:8080/v1/models | jq .
+```
+
+### 6) Troubleshooting
+
+* **Black screen / login loop (GNOME):** choose **GNOME on Xorg** at login (gear icon) or switch to **KDE/SDDM**.
+* **Stuck at `plymouth-quit.service` / `session-cX.scope`:** `Ctrl+Alt+F2` → login TTY → `sudo systemctl restart gdm` (or `sddm`). Consider disabling Wayland on GDM or using KDE.
+* **“Failed to initialize NVML: Driver/library version mismatch”:** reboot after installing/removing drivers; ensure only one version is installed.
+* **llama.cpp not using GPU:** rebuild with `-DGGML_CUDA=ON` and confirm `nvcc --version` exists.
+
+### 7) Upgrading later (the safe workflow)
+
+See **`nvidia-upgrade.md`** for a full checklist. TL;DR:
+
+```bash
+# Unfreeze (only what you plan to upgrade)
+sudo apt-mark unhold nvidia-driver-535
+
+# Upgrade
+sudo apt update
+sudo apt --with-new-pkgs upgrade
+
+# Reboot & verify
+nvidia-smi
+
+# Re-freeze
+sudo apt-mark hold nvidia-driver-535
+
+# If CUDA changed, rebuild llama.cpp
+```
+
+---
+
+## 🔤 Nerd Fonts
+
+Use **getnf** interactively (recommended) or install a curated set.
+
+**Interactive (fzf if present):**
+
+```bash
+./setup.sh
+# choose “Nerd Fonts” → uses getnf by default
+```
+
+**Manual curated set:**
+
+```bash
+./setup.sh  # choose “Nerd Fonts” (non-getnf path)
+```
+
+---
+
+## ⚙️ Configuration Notes
+
+* **Zsh config** auto-cloned from [y37y/zsh](https://github.com/y37y/zsh)
+* **Neovim config** cloned from your repo and bootstrapped
+* **Homebrew** used for many tools (latest versions)
+* **Run scripts WITHOUT sudo** (they ask for sudo when needed)
+
+---
 
 ## 🔍 Verification
 
-After installation, verify components:
-
 ```bash
-# Shell and Tools
+# Shell & tools
 zsh --version
 bat --version
 gdu --version
 yazi --version
 
-# Development Tools
-node --version   # Should show LTS version
+# Dev tools
+node --version
 go version
 rustc --version
 cargo --version
 
-# Package Managers
+# Package managers
 brew --version
 fnm --version
 
-# Version Control
+# VCS
 git --version
 lazygit --version
 
@@ -186,48 +337,32 @@ lazygit --version
 docker --version
 docker compose version
 
-# NVIDIA (if installed)
+# NVIDIA (if used)
 nvidia-smi
 nvitop
 ```
 
-## 🚀 Quick Start Commands
-
-```bash
-# Install everything
-./setup.sh all
-
-# Install only essential tools
-./setup.sh base shell
-
-# Install development environment
-./setup.sh base shell neovim node rust go
-
-# Install with browsers and fonts
-./setup.sh all
-```
-
-## ⚠️ Notes
-
-- **Run script WITHOUT sudo** (script will ask for sudo when needed)
-- **No SSH keys required** for basic installation
-- **Homebrew is installed without sudo** as recommended
-- **NVIDIA installation requires system restart**
-- **Zsh becomes default shell** after installation
-- **Browser installation is optional**
-- **Some tools require logging out and back in** to take effect
-- **Missing scripts are skipped gracefully** - won't break installation
+---
 
 ## 🔄 Updates
 
-To update your configuration:
-
 ```bash
-# Update the setup scripts
-cd ubuntu-setup
+# Update this repo
+cd ~/ubuntu-setup
 git pull
 
-# Update Zsh configuration
+# Update Zsh config
 cd ~/.config/zsh
 git pull
 ```
+
+---
+
+## ❗ Notes
+
+* Do **not** run `setup.sh` with `sudo`
+* Some changes require logout/login (default shell, PATH updates)
+* NVIDIA install requires a **reboot**
+* VirtualBox: install **manually** from Oracle’s site (script provided previously for reference only)
+
+---
