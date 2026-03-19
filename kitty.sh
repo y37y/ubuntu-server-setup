@@ -34,14 +34,18 @@ install_kitty() {
         sed -i "s|Icon=kitty|Icon=/home/$USER/.local/kitty.app/share/icons/hicolor/256x256/apps/kitty.png|g" ~/.local/share/applications/kitty*.desktop
         sed -i "s|Exec=kitty|Exec=/home/$USER/.local/kitty.app/bin/kitty|g" ~/.local/share/applications/kitty*.desktop
 
-        # Desktop Shortcut
-        cp ~/.local/kitty.app/share/applications/kitty.desktop ~/Desktop
-        sed -i "s|Icon=kitty|Icon=/home/$USER/.local/kitty.app/share/icons/hicolor/256x256/apps/kitty.png|g" ~/Desktop/kitty*.desktop
-        sed -i "s|Exec=kitty|Exec=/home/$USER/.local/kitty.app/bin/kitty|g" ~/Desktop/kitty*.desktop
-        chmod a+x ~/Desktop/kitty*.desktop
+        # Desktop Shortcut (only if ~/Desktop exists)
+        if [ -d "$HOME/Desktop" ]; then
+            cp ~/.local/kitty.app/share/applications/kitty.desktop ~/Desktop
+            sed -i "s|Icon=kitty|Icon=/home/$USER/.local/kitty.app/share/icons/hicolor/256x256/apps/kitty.png|g" ~/Desktop/kitty*.desktop
+            sed -i "s|Exec=kitty|Exec=/home/$USER/.local/kitty.app/bin/kitty|g" ~/Desktop/kitty*.desktop
+            chmod a+x ~/Desktop/kitty*.desktop
 
-        # Trust the desktop shortcut to allow launching
-        gio set ~/Desktop/kitty*.desktop metadata::trusted true
+            # Trust the desktop shortcut to allow launching
+            gio set ~/Desktop/kitty*.desktop metadata::trusted true
+        else
+            print_warning "~/Desktop not found, skipping desktop shortcut"
+        fi
     else
         print_status "Kitty is already installed (binary version)."
     fi

@@ -21,11 +21,11 @@ install_dotfiles_environment() {
 
     # Setup each dotfile repository
     setup_wezterm_dotfiles
-    setup_kitty_dotfiles  
+    setup_kitty_dotfiles
     setup_tmux_dotfiles
-    setup_yazi_dotfiles
     setup_zsh_dotfiles
     # Note: nvim is handled separately in setup.sh
+    # Note: yazi dotfiles skipped by default — run 'setup_yazi_dotfiles' manually if needed
 
     print_success "Dotfiles environment setup complete"
     print_warning "Please restart your shell or run 'exec zsh' to apply all changes"

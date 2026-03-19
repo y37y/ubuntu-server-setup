@@ -239,7 +239,7 @@ install_base_development() {
 
     # Homebrew packages
     brew install gcc luarocks bottom protobuf gnu-sed ast-grep htop btop dust duf \
-        procs fastfetch hyperfine httpie tldr tokei broot jq yq wget bat yazi \
+        procs fastfetch hyperfine httpie tldr tokei broot jq yq wget bat \
         inxi trash-cli
 
     # Create necessary directories
@@ -264,7 +264,7 @@ install_shell_tools() {
 
     # Install Zsh and related tools
     brew install zsh fzf eza zoxide ripgrep fd starship \
-        tmux zellij ghq tree bat yazi duf bottom \
+        tmux zellij ghq tree bat duf bottom \
         tree-sitter
 
     # Install Atuin shell history sync
@@ -278,8 +278,7 @@ install_shell_tools() {
         sudo apt update && sudo apt install -y wezterm-nightly
     fi
 
-    # Setup Zsh configuration
-    setup_zsh_environment
+    # Note: Zsh configuration is handled by dotfiles.sh
 }
 
 change_default_shell() {
@@ -372,11 +371,22 @@ install_remote_access_tools() {
     sudo systemctl enable ssh
     sudo systemctl start ssh
 
-    # Install NoMachine (pinned for stability; update when you want)
+    # Install NoMachine (auto-detect latest version, fallback to pinned)
     print_status "Installing NoMachine..."
 
-    # Latest known stable version (update manually if desired)
-    NOMACHINE_VERSION="8.14.2"
+    # Try to detect latest version from NoMachine download page
+    NOMACHINE_VERSION=""
+    if command -v curl &>/dev/null; then
+        NOMACHINE_VERSION=$(curl -fsSL "https://www.nomachine.com/download/download&id=1" 2>/dev/null \
+            | grep -oP 'nomachine_\K[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
+    fi
+
+    # Fallback to known stable version
+    if [ -z "$NOMACHINE_VERSION" ]; then
+        NOMACHINE_VERSION="8.14.2"
+        print_warning "Could not detect latest NoMachine version, using fallback: ${NOMACHINE_VERSION}"
+    fi
+
     NOMACHINE_URL="https://download.nomachine.com/download/${NOMACHINE_VERSION%.*}/Linux/nomachine_${NOMACHINE_VERSION}_1_amd64.deb"
 
     print_status "Downloading NoMachine ${NOMACHINE_VERSION}..."
@@ -392,6 +402,52 @@ install_remote_access_tools() {
 
     print_success "Remote access tools installation complete"
     print_warning "Remember to configure your firewall to allow SSH (port 22) and NoMachine (port 4000) if needed"
+}
+
+install_ghostty() {
+    print_status "Installing Ghostty terminal"
+
+    if command -v ghostty &>/dev/null; then
+        print_status "Ghostty is already installed"
+        return 0
+    fi
+
+    # Ghostty provides an apt repository for Ubuntu 24.04+
+    print_status "Adding Ghostty apt repository..."
+    sudo apt install -y libadwaita-1-dev
+
+    # Try the official apt package first (available for 24.04 noble)
+    if curl -fsSL https://pkg.ghostty.org/pubkey.gpg | sudo gpg --yes --dearmor -o /usr/share/keyrings/ghostty-archive-keyring.gpg; then
+        echo "deb [signed-by=/usr/share/keyrings/ghostty-archive-keyring.gpg] https://pkg.ghostty.org/apt $(lsb_release -cs) main" | \
+            sudo tee /etc/apt/sources.list.d/ghostty.list
+        sudo apt update
+        if sudo apt install -y ghostty; then
+            print_success "Ghostty installed via apt"
+            return 0
+        fi
+    fi
+
+    # Fallback: build from source
+    print_warning "Apt install failed, building Ghostty from source..."
+    if ! command -v zig &>/dev/null; then
+        print_status "Installing Zig (required for Ghostty build)..."
+        snap install zig --classic --beta 2>/dev/null || brew install zig
+    fi
+
+    local build_dir
+    build_dir=$(mktemp -d)
+    git clone --depth 1 https://github.com/ghostty-org/ghostty.git "$build_dir/ghostty"
+    cd "$build_dir/ghostty"
+    zig build -Doptimize=ReleaseFast
+    sudo cp zig-out/bin/ghostty /usr/local/bin/
+    cd - >/dev/null
+    rm -rf "$build_dir"
+
+    if command -v ghostty &>/dev/null; then
+        print_success "Ghostty installed from source"
+    else
+        print_warning "Ghostty installation failed — you can try manually later"
+    fi
 }
 
 install_nerd_fonts() {
@@ -631,7 +687,7 @@ verify_setup() {
 
     local tools=(
         zsh starship wezterm zellij nvim rg fzf fd ghq
-        zoxide tree bat eza git yazi duf btm tree-sitter
+        zoxide tree bat eza git duf btm tree-sitter
     )
 
     local missing=0
@@ -786,6 +842,8 @@ main() {
                 echo "  shell    - Install shell tools"
                 echo "  neovim   - Install Neovim (expects Node if you want Node provider)"
                 echo "  node     - Install Node.js environment"
+                echo "  docker   - Install Docker"
+                echo "  ghostty  - Install Ghostty terminal"
                 echo "  dotfiles - Setup dotfiles configuration"
                 echo "  grub     - Update GRUB configuration"
                 echo "  help     - Show this help message"
@@ -812,7 +870,10 @@ main() {
                 setup_neovim
                 execute_subscript "rust.sh"
                 execute_subscript "go.sh"
+                execute_subscript "docker.sh"
                 install_browsers
+                execute_subscript "kitty.sh" "true"
+                install_ghostty
                 setup_dotfiles_integrated
                 install_ssh_tools
                 install_network_tools
@@ -832,6 +893,12 @@ main() {
                 ;;
             "node")
                 execute_subscript "node.sh"
+                ;;
+            "docker")
+                execute_subscript "docker.sh"
+                ;;
+            "ghostty")
+                install_ghostty
                 ;;
             "dotfiles")
                 setup_dotfiles_integrated
@@ -894,19 +961,23 @@ main() {
         "6" "Node.js Environment" OFF
         "7" "Rust Tools" OFF
         "8" "Go Environment" OFF
-        "9" "Browsers" OFF
-        "10" "Dotfiles Configuration" OFF
-        "11" "SSH Tools" OFF
-        "12" "Network Tools" OFF
-        "13" "Nerd Fonts" OFF
-        "14" "Remote Access Tools (NoMachine + SSH)" OFF
-        "15" "VirtualBox (Removed — install manually)" OFF
-        "16" "Update GRUB Configuration" OFF
+        "9" "Docker" OFF
+        "10" "Browsers" OFF
+        "11" "Kitty Terminal" OFF
+        "12" "Ghostty Terminal" OFF
+        "13" "Dotfiles Configuration" OFF
+        "14" "SSH Tools" OFF
+        "15" "Network Tools" OFF
+        "16" "Nerd Fonts" OFF
+        "17" "Remote Access Tools (NoMachine + SSH)" OFF
+        "18" "AI Agent Tools (Claude Code, OpenCode, etc.)" OFF
+        "19" "VirtualBox (Removed — install manually)" OFF
+        "20" "Update GRUB Configuration" OFF
     )
 
     choices=$(whiptail --title "Installation Options" \
         --checklist "Select components to install (Install All is selected by default):" \
-        24 78 16 \
+        28 78 20 \
         "${options[@]}" \
         3>&1 1>&2 2>&3)
 
@@ -929,7 +1000,10 @@ main() {
         setup_neovim
         execute_subscript "rust.sh"
         execute_subscript "go.sh"
+        execute_subscript "docker.sh"
         install_browsers
+        execute_subscript "kitty.sh" "true"
+        install_ghostty
         setup_dotfiles_integrated
         install_ssh_tools
         install_network_tools
@@ -958,16 +1032,20 @@ main() {
         [[ $choices == *'"4"'* ]] && install_miniconda
         [[ $choices == *'"7"'* ]] && execute_subscript "rust.sh"
         [[ $choices == *'"8"'* ]] && execute_subscript "go.sh"
-        [[ $choices == *'"9"'* ]] && install_browsers
-        [[ $choices == *'"10"'* ]] && setup_dotfiles_integrated
-        [[ $choices == *'"11"'* ]] && install_ssh_tools
-        [[ $choices == *'"12"'* ]] && install_network_tools
-        [[ $choices == *'"13"'* ]] && install_nerd_fonts
-        [[ $choices == *'"14"'* ]] && install_remote_access_tools
-        if [[ $choices == *'"15"'* ]]; then
+        [[ $choices == *'"9"'* ]] && execute_subscript "docker.sh"
+        [[ $choices == *'"10"'* ]] && install_browsers
+        [[ $choices == *'"11"'* ]] && execute_subscript "kitty.sh" "true"
+        [[ $choices == *'"12"'* ]] && install_ghostty
+        [[ $choices == *'"13"'* ]] && setup_dotfiles_integrated
+        [[ $choices == *'"14"'* ]] && install_ssh_tools
+        [[ $choices == *'"15"'* ]] && install_network_tools
+        [[ $choices == *'"16"'* ]] && install_nerd_fonts
+        [[ $choices == *'"17"'* ]] && install_remote_access_tools
+        [[ $choices == *'"18"'* ]] && execute_subscript "agent.sh"
+        if [[ $choices == *'"19"'* ]]; then
             print_warning "VirtualBox install is removed from this script. Please download from the website and install manually."
         fi
-        [[ $choices == *'"16"'* ]] && update_grub_config
+        [[ $choices == *'"20"'* ]] && update_grub_config
     fi
 
     verify_setup
