@@ -271,8 +271,12 @@ install_shell_tools() {
         tree-sitter
 
     # Install Atuin shell history sync
-    print_status "Installing Atuin..."
-    curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
+    if ! command -v atuin &>/dev/null; then
+        print_status "Installing Atuin..."
+        curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
+    else
+        print_status "Atuin already installed"
+    fi
 
     # WezTerm
     if ! command -v wezterm &>/dev/null; then
@@ -615,6 +619,11 @@ install_miniconda() {
 }
 
 install_gdu() {
+    if [ -x "$HOME/.local/bin/gdu" ]; then
+        print_status "GDU already installed"
+        return 0
+    fi
+
     print_status "Installing GDU (Go Disk Usage)"
 
     # Create temporary directory
