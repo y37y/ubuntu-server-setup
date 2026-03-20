@@ -6,13 +6,19 @@ set -e
 source ./common.sh
 
 install_rust_environment() {
+    # Full skip if Rust + all cargo tools are already present
+    if command -v rustc &>/dev/null && command -v cargo-audit &>/dev/null && command -v cargo-install-update &>/dev/null; then
+        print_status "Rust environment already installed: $(rustc --version)"
+        return 0
+    fi
+
     print_status "Installing Rust environment"
-    
+
     # Install system dependencies for Rust compilation
     print_status "Installing system dependencies for Rust..."
     sudo apt update
     sudo apt install -y libssl-dev pkg-config build-essential libgit2-dev libcurl4-openssl-dev
-    
+
     if ! command -v rustc &>/dev/null; then
         print_status "Installing Rust via rustup..."
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -21,51 +27,58 @@ install_rust_environment() {
         print_status "Rust is already installed, updating..."
         rustup update
     fi
-    
+
     # Add commonly used components
     print_status "Installing Rust components..."
     rustup component add rust-analyzer rustfmt clippy
-    
-    # Install common Rust tools with better error handling
+
+    # Install common Rust tools — skip already-installed ones
     print_status "Installing Rust tools..."
-    
-    # Array of tools to install with their specific requirements
+
     local rust_tools=(
-        "tree-sitter-cli"
-        "cargo-edit"
-        "cargo-watch" 
-        "cargo-audit"
-        "selene"
+        "tree-sitter-cli:tree-sitter"
+        "cargo-edit:cargo-set-version"
+        "cargo-watch:cargo-watch"
+        "cargo-audit:cargo-audit"
+        "selene:selene"
     )
-    
-    # Install each tool individually with error handling
-    for tool in "${rust_tools[@]}"; do
-        print_status "Installing $tool..."
-        if cargo install --locked "$tool"; then
-            print_success "$tool installed successfully"
+
+    for entry in "${rust_tools[@]}"; do
+        local crate="${entry%%:*}"
+        local binary="${entry##*:}"
+        if command -v "$binary" &>/dev/null; then
+            print_status "$crate already installed"
         else
-            print_warning "Failed to install $tool, skipping..."
+            print_status "Installing $crate..."
+            if cargo install --locked "$crate"; then
+                print_success "$crate installed successfully"
+            else
+                print_warning "Failed to install $crate, skipping..."
+            fi
         fi
     done
-    
+
     # Try cargo-update with specific handling for OpenSSL issues
-    print_status "Installing cargo-update..."
-    
-    # Set environment variables to help find OpenSSL
-    export PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:$PKG_CONFIG_PATH"
-    export OPENSSL_DIR="/usr"
-    export OPENSSL_LIB_DIR="/usr/lib/x86_64-linux-gnu"
-    export OPENSSL_INCLUDE_DIR="/usr/include/openssl"
-    
-    if cargo install cargo-update; then
-        print_success "cargo-update installed successfully"
+    if command -v cargo-install-update &>/dev/null; then
+        print_status "cargo-update already installed"
     else
-        print_warning "cargo-update failed with standard method, trying with system OpenSSL..."
-        if OPENSSL_STATIC=0 cargo install cargo-update; then
-            print_success "cargo-update installed with system OpenSSL"
+        print_status "Installing cargo-update..."
+
+        # Set environment variables to help find OpenSSL
+        export PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:$PKG_CONFIG_PATH"
+        export OPENSSL_DIR="/usr"
+        export OPENSSL_LIB_DIR="/usr/lib/x86_64-linux-gnu"
+        export OPENSSL_INCLUDE_DIR="/usr/include/openssl"
+
+        if cargo install cargo-update; then
+            print_success "cargo-update installed successfully"
         else
-            print_warning "cargo-update installation failed completely, skipping..."
-            print_status "You can try installing it later with: sudo apt install cargo-update"
+            print_warning "cargo-update failed with standard method, trying with system OpenSSL..."
+            if OPENSSL_STATIC=0 cargo install cargo-update; then
+                print_success "cargo-update installed with system OpenSSL"
+            else
+                print_warning "cargo-update installation failed completely, skipping..."
+            fi
         fi
     fi
     

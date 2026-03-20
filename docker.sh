@@ -5,6 +5,11 @@ set -e
 source ./common.sh
 
 install_docker_environment() {
+    if command -v docker &>/dev/null; then
+        print_status "Docker already installed: $(docker --version)"
+        return 0
+    fi
+
     print_status "Installing Docker environment"
 
     # Remove old versions if they exist
@@ -22,7 +27,7 @@ install_docker_environment() {
     # Add Docker's official GPG key
     print_status "Adding Docker GPG key..."
     sudo install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --yes --dearmor -o /etc/apt/keyrings/docker.gpg
     sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
     # Add Docker repository

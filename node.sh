@@ -14,6 +14,12 @@ if ! command -v brew &>/dev/null; then
 fi
 
 install_node_environment() {
+  # Full skip if Node + fnm + pnpm are already present
+  if command -v node &>/dev/null && command -v fnm &>/dev/null && command -v pnpm &>/dev/null; then
+    print_status "Node.js environment already installed: $(node --version)"
+    return 0
+  fi
+
   print_status "Installing Node.js environment"
 
   # Install fnm via Homebrew if missing

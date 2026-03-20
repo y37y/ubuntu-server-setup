@@ -41,15 +41,27 @@ install_go_environment() {
   # Source the profile
   source "$HOME/.profile"
 
-  # Install common Go tools
+  # Install common Go tools (skip if already present)
   print_status "Installing Go tools..."
-  go install golang.org/x/tools/gopls@latest
-  go install github.com/go-delve/delve/cmd/dlv@latest
-  go install golang.org/x/tools/cmd/goimports@latest
-  go install golang.org/x/tools/cmd/godoc@latest
-  go install github.com/fatih/gomodifytags@latest
-  go install github.com/cweill/gotests/gotests@latest
-  go install github.com/x-motemen/gore/cmd/gore@latest
+  local go_tools=(
+    "golang.org/x/tools/gopls@latest:gopls"
+    "github.com/go-delve/delve/cmd/dlv@latest:dlv"
+    "golang.org/x/tools/cmd/goimports@latest:goimports"
+    "golang.org/x/tools/cmd/godoc@latest:godoc"
+    "github.com/fatih/gomodifytags@latest:gomodifytags"
+    "github.com/cweill/gotests/gotests@latest:gotests"
+    "github.com/x-motemen/gore/cmd/gore@latest:gore"
+  )
+
+  for entry in "${go_tools[@]}"; do
+    local pkg="${entry%%:*}"
+    local binary="${entry##*:}"
+    if command -v "$binary" &>/dev/null; then
+      print_status "$binary already installed"
+    else
+      go install "$pkg"
+    fi
+  done
 
   print_success "Go environment setup complete"
   print_status "Go version: $(go version)"
