@@ -135,10 +135,10 @@ setup_neovim() {
     pip install pynvim pylatexenc pillow notebook nbclassic jupyter-console
     deactivate
 
-    # Install Node.js provider and dependencies
+    # Install Node.js provider and dependencies (no sudo — fnm npm uses user prefix)
     if command -v npm &>/dev/null; then
         print_status "Installing Node.js provider and dependencies..."
-        sudo npm install -g neovim tree-sitter-cli @styled/typescript-styled-plugin
+        npm install -g neovim tree-sitter-cli @styled/typescript-styled-plugin
     else
         print_warning "Node.js not found. Skipping Node.js provider installation."
     fi
