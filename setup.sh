@@ -227,6 +227,7 @@ setup_zsh_environment() {
 
 install_base_development() {
     ensure_brew_env
+    sudo -v  # refresh sudo before long brew operations
 
     print_status "Installing base development tools"
 
@@ -262,6 +263,7 @@ install_base_development() {
 
 install_shell_tools() {
     ensure_brew_env
+    sudo -v  # refresh sudo before long brew operations
 
     print_status "Installing shell tools for Zsh"
 
@@ -318,12 +320,14 @@ change_default_shell() {
 
 install_version_control() {
     ensure_brew_env
+    sudo -v  # refresh sudo
     print_status "Installing version control tools"
     brew install git git-lfs lazygit lazydocker gh difftastic
     git lfs install
 }
 
 install_browsers() {
+    sudo -v  # refresh sudo
     print_status "Installing browsers"
 
     # Chrome
@@ -358,6 +362,7 @@ install_browsers() {
 }
 
 install_network_tools() {
+    sudo -v  # refresh sudo
     print_status "Installing network tools"
 
     # Install Tailscale
@@ -836,6 +841,9 @@ execute_subscript() {
     fi
 
     print_status "Executing $script_name..."
+
+    # Refresh sudo before launching subscript (prevents password prompt mid-output)
+    sudo -v
 
     # Export variables for the subscript
     export BREW_PREFIX="$(brew --prefix 2>/dev/null || echo "")"
