@@ -103,7 +103,14 @@ install_homebrew() {
 }
 
 setup_neovim() {
+    # Full skip if nvim + config + venv all exist
+    if command -v nvim &>/dev/null && [ -d "$HOME/.config/nvim" ] && [ -d "$HOME/.neovim-venv" ]; then
+        print_status "Neovim already set up: $(nvim --version | head -1)"
+        return 0
+    fi
+
     ensure_brew_env
+    sudo -v  # refresh sudo
 
     print_status "Setting up Neovim"
 
@@ -143,16 +150,7 @@ setup_neovim() {
         print_warning "Node.js not found. Skipping Node.js provider installation."
     fi
 
-    # Backup existing configuration
-    if [ -d ~/.config/nvim ]; then
-        print_status "Backing up existing Neovim configuration..."
-        mv ~/.config/nvim ~/.config/nvim.bak.$(date +%Y%m%d_%H%M%S)
-        rm -rf ~/.local/share/nvim
-        rm -rf ~/.local/state/nvim
-        rm -rf ~/.cache/nvim
-    fi
-
-    # Clone Neovim configuration
+    # Clone Neovim configuration (only if not already present)
     if [ ! -d ~/.config/nvim ]; then
         print_status "Installing your Neovim configuration..."
         git clone --recursive https://github.com/y37y/nvim.git ~/.config/nvim
@@ -168,6 +166,8 @@ setup_neovim() {
             git submodule update --init --recursive --force
             git submodule foreach git pull origin master
         )
+    else
+        print_status "Neovim configuration already exists"
     fi
 
     # Install additional tools using Homebrew
@@ -558,8 +558,12 @@ install_nerd_fonts_getnf() {
 }
 
 install_nerd_fonts_default() {
-    # list from getnf
-    local fonts=(BitstreamVeraSansMono CascadiaCode CodeNewRoman DroidSansMono FiraCode FiraMono Go-Mono Hack Hermit JetBrainsMono Meslo Noto Overpass ProggyClean RobotoMono SourceCodePro SpaceMono Ubuntu UbuntuMono)
+    # Essential fonts only — add more to the list if needed
+    # JetBrainsMono: primary dev font (wezterm, kitty, nvim)
+    # Meslo: popular fallback / powerlevel10k default
+    # FiraCode: ligatures alternative
+    # UbuntuMono: system UI fallback
+    local fonts=(JetBrainsMono Meslo FiraCode UbuntuMono)
 
     local fonts_dir="${HOME}/.local/share/fonts"
     mkdir -p "$fonts_dir"
@@ -573,10 +577,15 @@ install_nerd_fonts_default() {
     print_status "Using Nerd Fonts version: $version"
 
     for font in "${fonts[@]}"; do
+        # Skip if font files already exist in fonts dir
+        if ls "$fonts_dir"/${font}*.ttf &>/dev/null 2>&1 || ls "$fonts_dir"/${font}*.otf &>/dev/null 2>&1; then
+            print_status "$font already installed, skipping..."
+            continue
+        fi
         print_status "Downloading $font..."
         local zip_file="${font}.zip"
         local download_url="https://github.com/ryanoasis/nerd-fonts/releases/download/${version}/${zip_file}"
-        if wget "$download_url"; then
+        if wget -q "$download_url"; then
             unzip -o "$zip_file" -d "$fonts_dir"
             rm "$zip_file"
         else
