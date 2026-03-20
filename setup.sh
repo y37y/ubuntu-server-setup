@@ -323,19 +323,34 @@ install_browsers() {
     print_status "Installing browsers"
 
     # Chrome
-    wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-    sudo apt install -y ./google-chrome-stable_current_amd64.deb
-    rm google-chrome-stable_current_amd64.deb
+    if ! command -v google-chrome &>/dev/null; then
+        print_status "Installing Google Chrome..."
+        wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+        sudo apt install -y ./google-chrome-stable_current_amd64.deb
+        rm -f google-chrome-stable_current_amd64.deb
+    else
+        print_status "Google Chrome already installed"
+    fi
 
     # Edge
-    curl -fSsL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor | sudo tee /usr/share/keyrings/microsoft-edge.gpg >/dev/null
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-edge.gpg] https://packages.microsoft.com/repos/edge stable main" | sudo tee /etc/apt/sources.list.d/microsoft-edge.list
-    sudo apt update && sudo apt install -y microsoft-edge-stable
+    if ! command -v microsoft-edge &>/dev/null; then
+        print_status "Installing Microsoft Edge..."
+        curl -fSsL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --yes --dearmor -o /usr/share/keyrings/microsoft-edge.gpg
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-edge.gpg] https://packages.microsoft.com/repos/edge stable main" | sudo tee /etc/apt/sources.list.d/microsoft-edge.list
+        sudo apt update && sudo apt install -y microsoft-edge-stable
+    else
+        print_status "Microsoft Edge already installed"
+    fi
 
     # Brave
-    sudo curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
-    echo "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main" | sudo tee /etc/apt/sources.list.d/brave-browser-release.list
-    sudo apt update && sudo apt install -y brave-browser
+    if ! command -v brave-browser &>/dev/null; then
+        print_status "Installing Brave Browser..."
+        sudo curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+        echo "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main" | sudo tee /etc/apt/sources.list.d/brave-browser-release.list
+        sudo apt update && sudo apt install -y brave-browser
+    else
+        print_status "Brave Browser already installed"
+    fi
 }
 
 install_network_tools() {
@@ -359,6 +374,24 @@ install_network_tools() {
         print_status "ZeroTier is already installed"
     fi
 
+    # Install LocalSend
+    if ! command -v localsend &>/dev/null && ! flatpak list 2>/dev/null | grep -q localsend; then
+        print_status "Installing LocalSend..."
+        # Try flatpak first (most reliable on Ubuntu)
+        if command -v flatpak &>/dev/null; then
+            flatpak install -y flathub org.localsend.localsend_app
+            print_success "LocalSend installed via Flatpak"
+        else
+            # Install flatpak, then LocalSend
+            sudo apt install -y flatpak
+            flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+            flatpak install -y flathub org.localsend.localsend_app
+            print_success "LocalSend installed via Flatpak"
+        fi
+    else
+        print_status "LocalSend already installed"
+    fi
+
     print_success "Network tools installation complete"
 }
 
@@ -375,6 +408,12 @@ install_remote_access_tools() {
     sudo systemctl start ssh
 
     # Install NoMachine (auto-detect latest version, fallback to pinned)
+    if dpkg -l nomachine &>/dev/null 2>&1; then
+        print_status "NoMachine already installed"
+        print_success "Remote access tools installation complete"
+        return 0
+    fi
+
     print_status "Installing NoMachine..."
 
     # Try to detect latest version from NoMachine download page

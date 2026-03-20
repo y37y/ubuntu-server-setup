@@ -21,13 +21,19 @@ print_warning() {
 }
 
 # Function to maintain sudo privileges
+# Refreshes every 30s and tracks parent PID so it dies when setup.sh exits
 maintain_sudo() {
     sudo -v
-    while true; do
-        sudo -n true
-        sleep 60
-        kill -0 "$$" || exit
-    done 2>/dev/null &
+    local parent_pid=$$
+    (
+        while true; do
+            sudo -n true 2>/dev/null
+            sleep 30
+            kill -0 "$parent_pid" 2>/dev/null || exit 0
+        done
+    ) &
+    SUDO_KEEPER_PID=$!
+    export SUDO_KEEPER_PID
 }
 
 # Function to check system requirements
