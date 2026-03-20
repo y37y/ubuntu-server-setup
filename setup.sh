@@ -456,48 +456,18 @@ install_remote_access_tools() {
 }
 
 install_ghostty() {
-    print_status "Installing Ghostty terminal"
-
     if command -v ghostty &>/dev/null; then
-        print_status "Ghostty is already installed"
+        print_status "Ghostty already installed"
         return 0
     fi
 
-    # Ghostty provides an apt repository for Ubuntu 24.04+
-    print_status "Adding Ghostty apt repository..."
-    sudo apt install -y libadwaita-1-dev
+    ensure_brew_env
+    print_status "Installing Ghostty terminal via Homebrew..."
 
-    # Try the official apt package first (available for 24.04 noble)
-    if curl -fsSL https://pkg.ghostty.org/pubkey.gpg | sudo gpg --yes --dearmor -o /usr/share/keyrings/ghostty-archive-keyring.gpg; then
-        echo "deb [signed-by=/usr/share/keyrings/ghostty-archive-keyring.gpg] https://pkg.ghostty.org/apt $(lsb_release -cs) main" | \
-            sudo tee /etc/apt/sources.list.d/ghostty.list
-        sudo apt update
-        if sudo apt install -y ghostty; then
-            print_success "Ghostty installed via apt"
-            return 0
-        fi
-    fi
-
-    # Fallback: build from source
-    print_warning "Apt install failed, building Ghostty from source..."
-    if ! command -v zig &>/dev/null; then
-        print_status "Installing Zig (required for Ghostty build)..."
-        snap install zig --classic --beta 2>/dev/null || brew install zig
-    fi
-
-    local build_dir
-    build_dir=$(mktemp -d)
-    git clone --depth 1 https://github.com/ghostty-org/ghostty.git "$build_dir/ghostty"
-    cd "$build_dir/ghostty"
-    zig build -Doptimize=ReleaseFast
-    sudo cp zig-out/bin/ghostty /usr/local/bin/
-    cd - >/dev/null
-    rm -rf "$build_dir"
-
-    if command -v ghostty &>/dev/null; then
-        print_success "Ghostty installed from source"
+    if brew install ghostty; then
+        print_success "Ghostty installed via Homebrew"
     else
-        print_warning "Ghostty installation failed — you can try manually later"
+        print_warning "Ghostty installation failed — try manually: brew install ghostty"
     fi
 }
 
