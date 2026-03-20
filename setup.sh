@@ -156,15 +156,18 @@ setup_neovim() {
     if [ ! -d ~/.config/nvim ]; then
         print_status "Installing your Neovim configuration..."
         git clone --recursive https://github.com/y37y/nvim.git ~/.config/nvim
-        cd ~/.config/nvim
 
-        # Set up upstream remote
-        git remote add upstream https://github.com/chaozwn/astronvim_user
-        git fetch upstream
+        (
+            cd ~/.config/nvim
 
-        # Initialize and update submodules
-        git submodule update --init --recursive --force
-        git submodule foreach git pull origin master
+            # Set up upstream remote
+            git remote add upstream https://github.com/chaozwn/astronvim_user
+            git fetch upstream
+
+            # Initialize and update submodules
+            git submodule update --init --recursive --force
+            git submodule foreach git pull origin master
+        )
     fi
 
     # Install additional tools using Homebrew
