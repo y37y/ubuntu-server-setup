@@ -267,7 +267,15 @@ install_shell_tools() {
 
     print_status "Installing shell tools for Zsh"
 
-    # Install Zsh and related tools
+    # Install system zsh via apt first — ensures /usr/bin/zsh (and /bin/zsh symlink) exist.
+    # Kitty, WezTerm, and other terminals look up $SHELL which may point to /bin/zsh.
+    # Brew zsh is also installed below for the latest version.
+    if ! dpkg -l zsh 2>/dev/null | grep -q '^ii'; then
+        print_status "Installing system zsh via apt..."
+        sudo apt install -y zsh
+    fi
+
+    # Install Zsh (latest via brew) and related tools
     brew install zsh fzf eza zoxide ripgrep fd starship \
         tmux zellij ghq tree bat duf bottom \
         tree-sitter
