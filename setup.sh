@@ -876,7 +876,7 @@ main() {
             "help"|"-h"|"--help")
                 echo "Usage: $0 [command]"
                 echo "Commands:"
-                echo "  all      - Install all components (VirtualBox excluded)"
+                echo "  all      - Install all components"
                 echo "  base     - Install base development tools"
                 echo "  shell    - Install shell tools"
                 echo "  neovim   - Install Neovim (expects Node if you want Node provider)"
@@ -918,7 +918,6 @@ main() {
                 install_network_tools
                 install_nerd_fonts
                 install_remote_access_tools
-                # VirtualBox intentionally excluded (manual install)
                 update_grub_config
                 ;;
             "base")
@@ -991,7 +990,7 @@ main() {
 
     # Installation options
     options=(
-        "0" "Install All Components (VirtualBox excluded)" ON
+        "0" "Install All Components" ON
         "1" "Base Development Tools" OFF
         "2" "Shell Tools (Zsh)" OFF
         "3" "Version Control Tools" OFF
@@ -1009,14 +1008,12 @@ main() {
         "15" "Network Tools" OFF
         "16" "Nerd Fonts" OFF
         "17" "Remote Access Tools (NoMachine + SSH)" OFF
-        "18" "AI Agent Tools (Claude Code, OpenCode, etc.)" OFF
-        "19" "VirtualBox (Removed — install manually)" OFF
-        "20" "Update GRUB Configuration" OFF
+        "18" "Update GRUB Configuration" OFF
     )
 
     choices=$(whiptail --title "Installation Options" \
         --checklist "Select components to install (Install All is selected by default):" \
-        28 78 20 \
+        26 78 18 \
         "${options[@]}" \
         3>&1 1>&2 2>&3)
 
@@ -1030,7 +1027,7 @@ main() {
 
     # Process installations
     if [[ $choices == *'"0"'* ]]; then
-        # Install everything (VirtualBox excluded)
+        # Install everything
         install_base_development
         install_shell_tools
         install_version_control
@@ -1080,11 +1077,7 @@ main() {
         [[ $choices == *'"15"'* ]] && install_network_tools
         [[ $choices == *'"16"'* ]] && install_nerd_fonts
         [[ $choices == *'"17"'* ]] && install_remote_access_tools
-        [[ $choices == *'"18"'* ]] && execute_subscript "agent.sh"
-        if [[ $choices == *'"19"'* ]]; then
-            print_warning "VirtualBox install is removed from this script. Please download from the website and install manually."
-        fi
-        [[ $choices == *'"20"'* ]] && update_grub_config
+        [[ $choices == *'"18"'* ]] && update_grub_config
     fi
 
     verify_setup

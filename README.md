@@ -44,7 +44,8 @@ Comprehensive setup scripts for Ubuntu-based systems, focusing on development to
 - **Monitoring:** bottom (btm), htop, btop, procs, fastfetch, dust, duf
 - **Dev utils:** jq, yq, httpie, tldr, hyperfine, tokei, tree-sitter-cli, selene (Lua linter)
 - **Network:** Tailscale, ZeroTier
-- **Remote access:** NoMachine (auto-detects latest version), OpenSSH
+- **Remote access:** NoMachine (pinned version), OpenSSH
+- **File sharing:** LocalSend (via Flatpak)
 
 ### NVIDIA / CUDA (Optional)
 - NVIDIA proprietary drivers (e.g., 535 / 550)
@@ -53,7 +54,7 @@ Comprehensive setup scripts for Ubuntu-based systems, focusing on development to
 - Driver/kernel pinning to avoid breakage
 
 ### Extras
-- Nerd Fonts (via `getnf` or curated set)
+- Nerd Fonts (JetBrainsMono, Meslo, FiraCode, UbuntuMono)
 - GRUB configuration helper
 - Dotfiles management for wezterm, kitty, tmux, zsh, nvim
 - Solaar (Logitech device manager, optional)
@@ -145,9 +146,7 @@ chmod +x *.sh
 | `nvidia-upgrade.md` | Safe upgrade checklist (driver/kernel/CUDA) |
 | `solaar.sh` | Logitech device manager (optional) |
 | `adguard.sh` | AdGuard VPN (optional) |
-| `yazi.sh` | Yazi file manager (optional) |
 | `disable_touchscreen.sh` | Disable broken touchscreen via udev rule |
-| `virtualbox.sh` | VirtualBox (manual install recommended) |
 
 ---
 
@@ -170,11 +169,12 @@ The installer shows a checklist when run without arguments:
 13. Ghostty Terminal
 14. Dotfiles Configuration
 15. SSH Tools
-16. Network Tools (Tailscale, ZeroTier)
+16. Network Tools (Tailscale, ZeroTier, LocalSend)
 17. Nerd Fonts
 18. Remote Access Tools (NoMachine + SSH)
-19. AI Agent Tools
-20. Update GRUB Configuration
+19. Update GRUB Configuration
+
+AI agent tools are installed separately via `./agent.sh`.
 
 ---
 
@@ -226,7 +226,7 @@ See **`nvidia-upgrade.md`** for the full checklist.
 - **Neovim config** cloned from your repo and bootstrapped
 - **Homebrew** used for many tools (latest versions)
 - **Run scripts WITHOUT sudo** (they ask for sudo when needed)
-- **NoMachine** auto-detects the latest version on install, falls back to pinned version if detection fails
+- **NoMachine** uses a pinned version (8.14.2) with download validation
 
 ---
 
@@ -259,6 +259,5 @@ nvidia-smi
 - Do **not** run `setup.sh` with `sudo`
 - Some changes require logout/login (default shell, PATH updates)
 - NVIDIA install requires a **reboot**
-- VirtualBox: install manually from Oracle's site
 - The `disable_touchscreen.sh` script uses a udev rule that works on both X11 and Wayland
-- Yazi is not installed by default — run `yazi.sh` manually if needed
+- Scripts are idempotent — safe to re-run without re-downloading/recompiling already-installed tools
