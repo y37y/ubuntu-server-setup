@@ -425,31 +425,24 @@ install_remote_access_tools() {
 
     print_status "Installing NoMachine..."
 
-    # Try to detect latest version from NoMachine download page
-    NOMACHINE_VERSION=""
-    if command -v curl &>/dev/null; then
-        NOMACHINE_VERSION=$(curl -fsSL "https://www.nomachine.com/download/download&id=1" 2>/dev/null \
-            | grep -oP 'nomachine_\K[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
-    fi
-
-    # Fallback to known stable version
-    if [ -z "$NOMACHINE_VERSION" ]; then
-        NOMACHINE_VERSION="8.14.2"
-        print_warning "Could not detect latest NoMachine version, using fallback: ${NOMACHINE_VERSION}"
-    fi
-
+    # Use known stable version (auto-detect is unreliable)
+    NOMACHINE_VERSION="8.14.2"
     NOMACHINE_URL="https://download.nomachine.com/download/${NOMACHINE_VERSION%.*}/Linux/nomachine_${NOMACHINE_VERSION}_1_amd64.deb"
 
     print_status "Downloading NoMachine ${NOMACHINE_VERSION}..."
-    wget "${NOMACHINE_URL}" -O nomachine.deb
+    wget -q "${NOMACHINE_URL}" -O /tmp/nomachine.deb
 
-    # Install the package
-    print_status "Installing NoMachine package..."
-    sudo dpkg -i nomachine.deb
-    sudo apt-get install -f -y # Install any missing dependencies
+    # Verify it's actually a .deb file (not an HTML error page)
+    if file /tmp/nomachine.deb | grep -q "Debian binary package"; then
+        print_status "Installing NoMachine package..."
+        sudo dpkg -i /tmp/nomachine.deb
+        sudo apt-get install -f -y
+    else
+        print_warning "NoMachine download failed (got HTML instead of .deb)"
+        print_status "Install manually from: https://www.nomachine.com/download/linux&id=1"
+    fi
 
-    # Clean up
-    rm nomachine.deb
+    rm -f /tmp/nomachine.deb
 
     print_success "Remote access tools installation complete"
     print_warning "Remember to configure your firewall to allow SSH (port 22) and NoMachine (port 4000) if needed"
