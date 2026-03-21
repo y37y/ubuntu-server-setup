@@ -13,9 +13,13 @@ if ! command -v brew &>/dev/null; then
     fi
 fi
 
+# Prime sudo early — before the menu steals the terminal
+sudo -v
+
 # ─── Shared dependencies (browser automation, display, etc.) ───
 
 install_agent_system_deps() {
+    sudo -v
     print_status "Installing system dependencies for AI agent work..."
 
     sudo apt update
@@ -34,6 +38,7 @@ install_agent_system_deps() {
 }
 
 install_browser_automation_deps() {
+    sudo -v
     print_status "Installing browser automation dependencies..."
 
     # Playwright system deps (covers Chromium, Firefox, WebKit)
@@ -133,6 +138,7 @@ install_claude_code() {
 # ─── Claude Desktop (unofficial Linux build) ───
 
 install_claude_desktop_linux() {
+    sudo -v
     print_status "Installing Claude Desktop (unofficial Linux build)..."
 
     if command -v claude-desktop &>/dev/null || dpkg -l claude-desktop &>/dev/null 2>&1; then
@@ -308,6 +314,9 @@ show_menu() {
 
         [ $? -ne 0 ] && { print_error "Setup cancelled."; exit 1; }
 
+        # Refresh sudo after menu wait
+        sudo -v
+
         if [[ $choices == *'"0"'* ]]; then
             install_all
         else
@@ -327,6 +336,7 @@ show_menu() {
 }
 
 install_all() {
+    sudo -v
     install_agent_system_deps
     install_browser_automation_deps
     install_claude_code
