@@ -165,7 +165,6 @@ setup_tmux_dotfiles() {
 
     print_status "Setting up Tmux dotfiles..."
 
-    # Clone or update repository
     if [ ! -d "$repo_dir" ]; then
         print_status "Cloning Tmux dotfiles repository..."
         git clone https://github.com/y37y/tmux.git "$repo_dir"
@@ -176,24 +175,18 @@ setup_tmux_dotfiles() {
         cd - > /dev/null
     fi
 
-    # Remove existing symlinks
+    # Symlink entire directory (not just the file)
+    ln -sfn "$repo_dir" "$HOME/.config/tmux"
+
+    # Still need ~/.tmux.conf as tmux's default entrypoint
     [ -L "$HOME/.tmux.conf" ] && rm "$HOME/.tmux.conf"
+    ln -sf "$HOME/.config/tmux/tmux.conf" "$HOME/.tmux.conf"
+    print_success "Tmux configuration linked"
 
-    # Link tmux configuration
-    if [ -f "$repo_dir/.tmux.conf" ]; then
-        ln -sf "$repo_dir/.tmux.conf" "$HOME/.tmux.conf"
-        print_success "Tmux configuration linked"
-    elif [ -f "$repo_dir/tmux.conf" ]; then
-        ln -sf "$repo_dir/tmux.conf" "$HOME/.tmux.conf"
-        print_success "Tmux configuration linked"
-    else
-        print_warning "Tmux configuration file not found in repository"
-    fi
-
-    # Install TPM (Tmux Plugin Manager) if not already installed
-    if [ ! -d "$HOME/.tmux/plugins/tpm" ]; then
+    # TPM goes inside the repo dir (gitignored via plugins/)
+    if [ ! -d "$HOME/.config/tmux/plugins/tpm" ]; then
         print_status "Installing Tmux Plugin Manager..."
-        git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+        git clone https://github.com/tmux-plugins/tpm "$HOME/.config/tmux/plugins/tpm"
         print_success "TPM installed. Run 'prefix + I' in tmux to install plugins"
     else
         print_status "TPM already installed"
