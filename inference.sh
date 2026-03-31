@@ -100,16 +100,24 @@ install_llama_cpp() {
   local cuda_flags=""
   if command -v nvcc >/dev/null 2>&1; then
     print_status "CUDA detected: $(nvcc --version | grep release | awk '{print $5}' | tr -d ',')"
-    cuda_flags="-DGGML_CUDA=ON"
+    local cuda_arch
+    cuda_arch=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -n1 | tr -d '.')
+    if [[ -n "$cuda_arch" ]]; then
+      print_status "GPU compute capability: $cuda_arch"
+    else
+      print_warning "Could not query compute capability, defaulting to 89 (Ada Lovelace)"
+      cuda_arch="89"
+    fi
+    cuda_flags="-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=$cuda_arch -DGGML_CUDA_FORCE_MMQ=ON"
   else
     print_warning "nvcc not found — building llama.cpp without CUDA."
-    print_warning "For GPU support, install CUDA first: ./nvidia.sh --cuda 12.8"
+    print_warning "For GPU support, install CUDA first: ./nvidia.sh --cuda"
   fi
 
   # Clone or update
   if [[ ! -d "$LLAMA_CPP_DIR" ]]; then
     print_status "Cloning llama.cpp..."
-    git clone https://github.com/ggerganov/llama.cpp "$LLAMA_CPP_DIR"
+    git clone https://github.com/ggml-org/llama.cpp "$LLAMA_CPP_DIR"
   else
     print_status "Updating llama.cpp..."
     git -C "$LLAMA_CPP_DIR" pull
@@ -119,7 +127,8 @@ install_llama_cpp() {
   print_status "Building (this may take a few minutes)..."
   cmake -S "$LLAMA_CPP_DIR" -B "$LLAMA_CPP_DIR/build" \
     -DCMAKE_BUILD_TYPE=Release \
-    $cuda_flags
+    $cuda_flags \
+    -DLLAMA_CURL=ON
 
   cmake --build "$LLAMA_CPP_DIR/build" --config Release -j"$(nproc)"
 

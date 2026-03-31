@@ -270,7 +270,6 @@ fi
 
 if [[ -n "$CUDA_VER" ]]; then
   if [[ "$CUDA_VER" == "auto" ]]; then
-    local drv_major
     drv_major="$(get_installed_driver_major)"
     if [[ -z "$drv_major" ]]; then
       red "Cannot auto-select CUDA version: no NVIDIA driver detected."
