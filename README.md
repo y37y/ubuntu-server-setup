@@ -1,263 +1,234 @@
-# Ubuntu Development Environment Setup
+# Ubuntu Server Setup — LLM Inference
 
-Comprehensive setup scripts for Ubuntu-based systems, focusing on development tools, programming languages, system configurations, AI agent tooling, and **optional NVIDIA/CUDA** for local LLMs.
+Automated setup scripts for Ubuntu 24.04 Server optimized for LLM inference workloads.
+Target hardware: **RTX 4090** (or any NVIDIA GPU with 8GB+ VRAM).
+
+## Quick Start
+
+```bash
+git clone https://github.com/y37y/ubuntu-server-setup.git
+cd ubuntu-server-setup
+chmod +x setup.sh
+./setup.sh          # interactive whiptail menu
+```
+
+Or non-interactive:
+
+```bash
+# Full server stack (essential + docker + nvidia + ollama)
+./setup.sh --all-server
+
+# Individual components
+./setup.sh --essential --docker --nvidia --inference
+```
+
+## Components
+
+### Core Scripts
+
+| Script | Description |
+|--------|-------------|
+| `setup.sh` | Interactive menu or CLI installer |
+| `common.sh` | Shared helper functions |
+| `docker.sh` | Docker Engine + Docker Compose |
+| `nvidia.sh` | NVIDIA drivers + CUDA + container toolkit |
+| `inference.sh` | Ollama, llama.cpp, vLLM |
+| `network.sh` | Tailscale VPN + SSH hardening |
+| `dotfiles.sh` | Zsh + tmux + Neovim configs |
+| `node.sh` | Node.js via fnm |
+| `rust.sh` | Rust toolchain via rustup |
+| `go.sh` | Go (latest from go.dev) |
+| `agent.sh` | Claude Code and other AI agent tools |
 
 ---
 
-## Features
+## nvidia.sh
 
-### Core Development Tools
-- Build Essential & GCC
-- Python development tools
-- Node.js (latest LTS via fnm)
-- Go (latest version)
-- Rust (with rustup)
-- Docker & Docker Compose
+Handles driver, CUDA, and container toolkit installation safely.
 
-### Shell & Terminal
-- **Zsh shell** with modern configuration from [y37y/zsh](https://github.com/y37y/zsh)
-- **Terminal utilities:** fzf, eza, atuin, zoxide, ripgrep, fd, starship, bat/batcat, gdu, trash-cli
-- **Terminal multiplexers:** tmux, zellij
-- **Terminal emulators:** WezTerm (nightly), Kitty, Ghostty
+```bash
+# Auto-detect recommended driver + CUDA 12.8 + Docker GPU support
+./nvidia.sh --auto --cuda 12.8 --container
 
-### Version Control
-- Git & Git LFS
-- Lazygit, Lazydocker
-- ghq (repository manager)
-- GitHub CLI (gh)
-- difftastic (modern diff)
+# Specific driver version
+./nvidia.sh --driver 570 --cuda 12.8 --container
 
-### Code Editors
-- Neovim with custom configuration
+# CUDA only (driver already installed)
+./nvidia.sh --cuda 12.8
 
-### Browsers
-- Google Chrome, Microsoft Edge, Brave Browser
+# Hold driver version to prevent apt upgrades
+./nvidia.sh --auto --hold-driver
+```
 
-### AI Agent Tools (`agent.sh`)
-- **Claude Code** (CLI, official npm package)
-- **Claude Desktop** (unofficial Linux build via [claude-desktop-debian](https://github.com/aaddrick/claude-desktop-debian))
-- **OpenCode**, **Qwen Code**, **OpenClaw**, **Eigent**
-- Browser automation deps (Playwright, ChromeDriver, xvfb)
-- Python agent venv (selenium, anthropic, openai, litellm, etc.)
+**Driver/CUDA compatibility:**
 
-### System Tools & Utilities
-- **Monitoring:** bottom (btm), htop, btop, procs, fastfetch, dust, duf
-- **Dev utils:** jq, yq, httpie, tldr, hyperfine, tokei, tree-sitter-cli, selene (Lua linter)
-- **Network:** Tailscale, ZeroTier
-- **Remote access:** NoMachine (pinned version), OpenSSH
-- **File sharing:** LocalSend (via Flatpak)
+| Driver | Max CUDA |
+|--------|----------|
+| 535    | 12.2     |
+| 550    | 12.4     |
+| 560    | 12.6     |
+| 570+   | 12.8     |
 
-### NVIDIA / CUDA (Optional)
-- NVIDIA proprietary drivers (e.g., 535 / 550)
-- CUDA Toolkit 12.x
-- NVIDIA Container Toolkit
-- Driver/kernel pinning to avoid breakage
+**Verify:**
+```bash
+nvidia-smi
+nvcc --version
+docker run --rm --gpus all nvidia/cuda:12.6.0-base-ubuntu24.04 nvidia-smi
+```
 
-### Extras
-- Nerd Fonts (JetBrainsMono, Meslo, FiraCode, UbuntuMono)
-- GRUB configuration helper
-- Dotfiles management for wezterm, kitty, tmux, zsh, nvim
-- Solaar (Logitech device manager, optional)
-- Touchscreen disable (udev rule, X11/Wayland compatible)
+---
+
+## inference.sh
+
+```bash
+# Install all inference tools
+./inference.sh --all
+
+# Ollama only (easiest — GPU auto-detected)
+./inference.sh --ollama
+
+# llama.cpp compiled with CUDA
+./inference.sh --llama-cpp
+
+# vLLM in a Python venv (requires CUDA)
+./inference.sh --vllm
+```
+
+### Ollama
+
+```bash
+# Start (or use systemd service installed automatically)
+ollama serve
+
+# Pull and run models
+ollama run llama3.2
+ollama run qwen2.5-coder:7b
+ollama run deepseek-r1:7b
+
+# OpenAI-compatible API
+curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"llama3.2","messages":[{"role":"user","content":"hi"}]}'
+```
+
+### llama.cpp
+
+Binaries installed to `~/.local/bin/`:
+
+```bash
+# Run inference
+llama-cli -m /path/to/model.gguf -p "Hello" -n 256 --gpu-layers 99
+
+# OpenAI-compatible server
+llama-server -m /path/to/model.gguf --port 8080 --gpu-layers 99
+```
+
+### vLLM
+
+```bash
+source ~/venvs/vllm/bin/activate
+# Or use the alias: vllm-activate
+
+# Serve a HuggingFace model (OpenAI-compatible API on port 8000)
+vllm serve Qwen/Qwen2.5-7B-Instruct --gpu-memory-utilization 0.9
+
+# Use the API
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"Qwen/Qwen2.5-7B-Instruct","messages":[{"role":"user","content":"hi"}]}'
+```
+
+---
+
+## network.sh
+
+```bash
+# Tailscale only
+./network.sh --tailscale
+
+# SSH hardening only (ensure SSH keys are set up first!)
+./network.sh --ssh-harden
+
+# Both
+./network.sh --all
+```
+
+**SSH hardening applies:**
+- Password authentication disabled
+- Root login disabled
+- Max auth tries: 3
+- fail2ban: bans IPs after 3 failed SSH attempts for 24h
+
+> **Warning:** Set up your SSH public key (`~/.ssh/authorized_keys`) **before** running `--ssh-harden`.
+
+---
+
+## dotfiles.sh
+
+Clones and symlinks configs for zsh, tmux, and Neovim from [github.com/y37y](https://github.com/y37y):
+
+```bash
+./dotfiles.sh           # install
+./dotfiles.sh update    # pull latest from all repos
+./dotfiles.sh status    # check what's installed
+```
+
+---
+
+## docker.sh
+
+Installs Docker Engine from the official Docker repo.
+
+```bash
+./docker.sh
+```
+
+After install, log out and back in for the `docker` group to take effect.
 
 ---
 
 ## Requirements
 
-- Ubuntu **22.04** or **24.04**
-- Internet connection
-- Sudo privileges
-- At least 1 GB free disk space
-- NVIDIA GPU (only if using nvidia.sh)
+- Ubuntu 24.04 Server (minimal or standard)
+- Internet access
+- At least 20GB free disk space (more for large models)
+- NVIDIA GPU with CUDA-capable driver (for GPU inference)
 
----
-
-## Installation
-
-1. **Clone the repository**
+## Upgrading NVIDIA Drivers Safely
 
 ```bash
-git clone https://github.com/y37y/ubuntu-setup.git
-cd ubuntu-setup
+# Hold the driver to prevent accidental upgrades
+sudo apt-mark hold nvidia-driver-570
+
+# To upgrade: unhold, upgrade, rehold
+sudo apt-mark unhold nvidia-driver-570
+sudo apt-get install nvidia-driver-575
+sudo apt-mark hold nvidia-driver-575
+sudo reboot
 ```
 
-2. **Make scripts executable**
+## Troubleshooting
 
+**GPU not detected by Docker:**
 ```bash
-chmod +x *.sh
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+docker run --rm --gpus all nvidia/cuda:12.6.0-base-ubuntu24.04 nvidia-smi
 ```
 
-3. **Run the main setup script**
-
+**Ollama not using GPU:**
 ```bash
-./setup.sh          # Interactive menu
-./setup.sh all      # Install everything
+nvidia-smi           # verify driver is loaded
+ollama run llama3.2 --verbose  # check GPU layers
 ```
 
-4. **Run individual components**
-
+**llama.cpp built without CUDA:**
 ```bash
-./setup.sh base      # Base development tools
-./setup.sh shell     # Zsh + shell tools
-./setup.sh neovim    # Neovim + providers
-./setup.sh node      # Node.js via fnm
-./setup.sh docker    # Docker
-./setup.sh ghostty   # Ghostty terminal
-./setup.sh dotfiles  # Dotfiles configuration
-./setup.sh grub      # GRUB configuration
+# Ensure nvcc is in PATH first
+source ~/.bashrc
+which nvcc
+# Then rebuild
+cd ~/Projects/llama.cpp
+rm -rf build
+cmake -B build -DGGML_CUDA=ON && cmake --build build -j$(nproc)
 ```
-
-5. **AI agent tools**
-
-```bash
-./agent.sh           # Interactive menu
-./agent.sh all       # Install all agent tools
-./agent.sh deps      # System + browser automation deps only
-./agent.sh claude-code
-./agent.sh opencode
-./agent.sh qwen
-./agent.sh openclaw
-./agent.sh eigent
-./agent.sh verify    # Check what's installed
-```
-
-6. **NVIDIA/CUDA (optional)**
-
-```bash
-./nvidia.sh
-```
-
----
-
-## Script Structure
-
-| Script | Purpose |
-|---|---|
-| `setup.sh` | Main installer with interactive menu |
-| `common.sh` | Shared helper functions |
-| `agent.sh` | AI agent tools (Claude Code, OpenCode, Qwen, etc.) |
-| `node.sh` | Node.js (fnm, npm/pnpm/yarn globals) |
-| `rust.sh` | Rust toolchain + cargo tools |
-| `go.sh` | Go environment |
-| `docker.sh` | Docker & Docker Compose |
-| `kitty.sh` | Kitty terminal emulator |
-| `dotfiles.sh` | Dotfiles management (wezterm, kitty, tmux, zsh) |
-| `nvidia.sh` | NVIDIA driver, CUDA toolkit, container runtime |
-| `nvidia-upgrade.md` | Safe upgrade checklist (driver/kernel/CUDA) |
-| `solaar.sh` | Logitech device manager (optional) |
-| `adguard.sh` | AdGuard VPN (optional) |
-| `disable_touchscreen.sh` | Disable broken touchscreen via udev rule |
-
----
-
-## Interactive Menu Options
-
-The installer shows a checklist when run without arguments:
-
-1. Install All Components
-2. Base Development Tools
-3. Shell Tools (Zsh)
-4. Version Control Tools
-5. Miniconda
-6. Neovim Setup
-7. Node.js Environment
-8. Rust Tools
-9. Go Environment
-10. Docker
-11. Browsers
-12. Kitty Terminal
-13. Ghostty Terminal
-14. Dotfiles Configuration
-15. SSH Tools
-16. Network Tools (Tailscale, ZeroTier, LocalSend)
-17. Nerd Fonts
-18. Remote Access Tools (NoMachine + SSH)
-19. Update GRUB Configuration
-
-AI agent tools are installed separately via `./agent.sh`.
-
----
-
-## NVIDIA & CUDA (LLM-friendly guide)
-
-This repo ships a **safe, flag-driven** `nvidia.sh` so you can install just what you need (driver, CUDA, container runtime) and **freeze** versions to avoid `apt upgrade` surprises.
-
-### Quick install
-
-```bash
-# Driver + freeze
-./nvidia.sh --driver 535 --hold-driver
-
-# CUDA toolkit (without touching driver)
-./nvidia.sh --cuda 12.0
-
-# Container toolkit (for Docker GPU passthrough)
-./nvidia.sh --container
-```
-
-### Build llama.cpp with CUDA
-
-```bash
-cd ~/Projects
-git clone https://github.com/ggml-org/llama.cpp.git
-cd llama.cpp
-
-cmake -B build -S . \
-  -DGGML_CUDA=ON \
-  -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j"$(nproc)"
-```
-
-### Upgrading (the safe workflow)
-
-See **`nvidia-upgrade.md`** for the full checklist.
-
-### Troubleshooting
-
-- **Black screen / login loop (GNOME):** choose GNOME on Xorg at login (gear icon)
-- **"Failed to initialize NVML":** reboot after installing/removing drivers
-- **llama.cpp not using GPU:** rebuild with `-DGGML_CUDA=ON` and confirm `nvcc --version` exists
-
----
-
-## Configuration Notes
-
-- **Zsh config** auto-cloned from [y37y/zsh](https://github.com/y37y/zsh)
-- **Neovim config** cloned from your repo and bootstrapped
-- **Homebrew** used for many tools (latest versions)
-- **Run scripts WITHOUT sudo** (they ask for sudo when needed)
-- **NoMachine** uses a pinned version (8.14.2) with download validation
-
----
-
-## Verification
-
-```bash
-# Shell & tools
-zsh --version && bat --version && gdu --version
-
-# Dev tools
-node --version && go version && rustc --version
-
-# Package managers
-brew --version && fnm --version
-
-# Docker
-docker --version && docker compose version
-
-# Agent tools
-claude --version && opencode --version
-
-# NVIDIA (if used)
-nvidia-smi
-```
-
----
-
-## Notes
-
-- Do **not** run `setup.sh` with `sudo`
-- Some changes require logout/login (default shell, PATH updates)
-- NVIDIA install requires a **reboot**
-- The `disable_touchscreen.sh` script uses a udev rule that works on both X11 and Wayland
-- Scripts are idempotent — safe to re-run without re-downloading/recompiling already-installed tools
