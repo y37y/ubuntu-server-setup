@@ -47,14 +47,17 @@ Or non-interactive:
 Handles driver, CUDA, and container toolkit installation safely.
 
 ```bash
-# Auto-detect recommended driver + CUDA 12.8 + Docker GPU support
-./nvidia.sh --auto --cuda 12.8 --container
+# Auto-detect driver + auto-select best CUDA version + Docker GPU support
+./nvidia.sh --auto --cuda --container
 
-# Specific driver version
-./nvidia.sh --driver 570 --cuda 12.8 --container
+# Pin a specific CUDA version
+./nvidia.sh --auto --cuda 12.6 --container
 
-# CUDA only (driver already installed)
-./nvidia.sh --cuda 12.8
+# Specific driver + auto CUDA
+./nvidia.sh --driver 570 --cuda --container
+
+# CUDA only (driver already installed, version auto-selected)
+./nvidia.sh --cuda
 
 # Hold driver version to prevent apt upgrades
 ./nvidia.sh --auto --hold-driver

@@ -22,7 +22,9 @@ Options:
   --auto               Auto-detect and install recommended NVIDIA driver.
   --driver <ver>       Install a specific NVIDIA driver (e.g. 535, 550, 570).
   --hold-driver        Mark the installed driver on hold (prevents apt upgrades).
-  --cuda <ver>         Install CUDA Toolkit (e.g. 12.4, 12.6, 12.8).
+  --cuda [ver]         Install CUDA Toolkit. Version is optional; if omitted,
+                       the highest compatible version for the installed driver
+                       is chosen automatically (e.g. driver 570+ → 12.8).
   --container          Install NVIDIA Container Toolkit (for Docker).
   --no-confirm         Non-interactive (assume "yes" where safe).
   -h, --help           Show this help.
@@ -38,13 +40,13 @@ Compatibility (rule of thumb):
   Driver 560  -> up to CUDA 12.6
   Driver 570+ -> up to CUDA 12.8
 
-Recommended for RTX 4090: --auto --cuda 12.8 --container
+Recommended for RTX 4090: --auto --cuda --container
 EOF
 }
 
 # --- args ---
 DRIVER_VER=""
-CUDA_VER=""
+CUDA_VER=""        # empty = not requested; "auto" = requested, version TBD
 INSTALL_CONTAINER="no"
 HOLD_DRIVER="no"
 ASSUME_YES="no"
@@ -54,7 +56,14 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --auto)         AUTO_DRIVER="yes"; shift ;;
     --driver)       DRIVER_VER="$2"; shift 2 ;;
-    --cuda)         CUDA_VER="$2"; shift 2 ;;
+    --cuda)
+      # Optional version argument: consume next token only if it looks like a
+      # version number (digits and dots), not another flag.
+      if [[ -n "${2:-}" && "${2}" =~ ^[0-9]+\.[0-9]+ ]]; then
+        CUDA_VER="$2"; shift 2
+      else
+        CUDA_VER="auto"; shift   # version will be resolved from driver later
+      fi ;;
     --container)    INSTALL_CONTAINER="yes"; shift ;;
     --hold-driver)  HOLD_DRIVER="yes"; shift ;;
     --no-confirm)   ASSUME_YES="yes"; shift ;;
@@ -108,6 +117,17 @@ detect_recommended_driver() {
   fi
 
   echo "$recommended"
+}
+
+# Return the highest CUDA version compatible with a given driver major.
+best_cuda_for_driver() {
+  local drv_major="$1"
+  case "$drv_major" in
+    530|531|532|533|534|535) echo "12.2" ;;
+    540|541|542|543|544|545|546|547|548|549|550) echo "12.4" ;;
+    560|561|562|563|564|565|566|567|568|569) echo "12.6" ;;
+    *) echo "12.8" ;;   # 570+ and any future drivers
+  esac
 }
 
 check_cuda_compat() {
@@ -249,6 +269,17 @@ else
 fi
 
 if [[ -n "$CUDA_VER" ]]; then
+  if [[ "$CUDA_VER" == "auto" ]]; then
+    local drv_major
+    drv_major="$(get_installed_driver_major)"
+    if [[ -z "$drv_major" ]]; then
+      red "Cannot auto-select CUDA version: no NVIDIA driver detected."
+      red "Install a driver first with --auto or --driver <ver>, then retry."
+      exit 1
+    fi
+    CUDA_VER="$(best_cuda_for_driver "$drv_major")"
+    blue "Auto-selected CUDA $CUDA_VER for driver $drv_major.x"
+  fi
   install_cuda_toolkit "$CUDA_VER"
 else
   blue "CUDA not requested. Skipping."

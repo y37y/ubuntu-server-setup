@@ -122,25 +122,24 @@ install_docker() {
 # 4. NVIDIA drivers + CUDA
 # ---------------------------------------------------------------------------
 install_nvidia() {
+    local cuda_flag="--cuda"   # auto-selects best version for installed driver
+    local extra_flags=""
+
     if command -v whiptail >/dev/null 2>&1; then
+        # Allow overriding the auto-selected version
         local cuda_ver
         cuda_ver=$(whiptail --title "NVIDIA / CUDA Setup" \
-            --inputbox "CUDA version to install (e.g. 12.8, 12.6, or leave blank to skip CUDA):" \
-            10 60 "12.8" 3>&1 1>&2 2>&3) || cuda_ver=""
+            --inputbox "CUDA version to install (leave blank to auto-detect from driver):" \
+            10 60 "" 3>&1 1>&2 2>&3) || cuda_ver=""
+        [ -n "$cuda_ver" ] && cuda_flag="--cuda $cuda_ver"
 
-        local extra_flags=""
         if whiptail --title "NVIDIA Container Toolkit" --yesno \
             "Install NVIDIA Container Toolkit for Docker GPU support?" 8 60; then
             extra_flags="--container"
         fi
-
-        local cuda_flag=""
-        [ -n "$cuda_ver" ] && cuda_flag="--cuda $cuda_ver"
-
-        bash "$SCRIPT_DIR/nvidia.sh" --auto $cuda_flag $extra_flags --no-confirm
-    else
-        bash "$SCRIPT_DIR/nvidia.sh" --auto --cuda 12.8 --container --no-confirm
     fi
+
+    bash "$SCRIPT_DIR/nvidia.sh" --auto $cuda_flag $extra_flags --no-confirm
 }
 
 # ---------------------------------------------------------------------------
