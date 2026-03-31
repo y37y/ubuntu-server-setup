@@ -199,19 +199,21 @@ install_cuda_toolkit() {
   local pkg="cuda-toolkit-${cuda_ver//./-}"
   sudo apt-get install $(apt_y) "$pkg"
 
-  # Add CUDA paths idempotently to both bashrc and zshrc
+  # Add CUDA paths idempotently.
+  # ~/.zshrc.local is used for zsh so it survives dotfiles reinstalls
+  # (zshrc sources ~/.zshrc.local at the bottom).
   local cudabase="/usr/local/cuda-${cuda_ver}"
   local line_path="export PATH=${cudabase}/bin:\$PATH"
   local line_lib="export LD_LIBRARY_PATH=${cudabase}/lib64:\${LD_LIBRARY_PATH:-}"
 
-  for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
-    [[ -f "$rc" ]] || continue
+  for rc in "$HOME/.bashrc" "$HOME/.zshrc.local"; do
+    [[ -f "$rc" ]] || touch "$rc"
     grep -qxF "$line_path" "$rc" || echo "$line_path" >> "$rc"
     grep -qxF "$line_lib"  "$rc" || echo "$line_lib"  >> "$rc"
   done
 
   green "CUDA $cuda_ver installed."
-  yellow "Open a new shell or run: source ~/.bashrc  (or ~/.zshrc) to get nvcc in PATH."
+  yellow "Open a new shell or run: source ~/.zshrc.local  (or ~/.bashrc) to get nvcc in PATH."
   blue "Verify: nvcc --version   |   nvidia-smi"
 }
 
